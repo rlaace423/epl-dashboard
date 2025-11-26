@@ -458,7 +458,10 @@ def show_page():
                         tickvals=list(range(len(df_display))),
                         ticktext=df_display['Display_Name'].tolist()
                     ),
-                    plot_bgcolor='rgba(248,248,248,0.8)',
+                    # plot_bgcolor='rgba(248,248,248,0.8)',
+                    plot_bgcolor='rgba(0,0,0,0)',  # [중요] 배경 완전 투명
+                    paper_bgcolor='rgba(0,0,0,0)',  # [중요] 배경 완전 투명
+                    template='plotly_dark',  # 다크 템플릿
                     showlegend=False
                 )
 
@@ -644,7 +647,8 @@ def show_page():
                         ),
                         showlegend=False,
                         height=480,
-                        margin=dict(t=20, b=60, l=40, r=40)
+                        margin=dict(t=20, b=60, l=40, r=40),
+                        template='plotly_dark',
                     )
                     st.plotly_chart(fig_empty, use_container_width=True)
 
@@ -1202,7 +1206,7 @@ def show_page():
     st.markdown(
         """
         <div style='text-align: center; color: gray;'>
-            ⚽ 축구 유망주 탐색 대시보드 | Powered by Streamlit & Plotly<br>
+            ⚽ 축구 유망주 탐색 대시보드<br>
             데이터: Football Manager 선수 데이터베이스
         </div>
         """,
