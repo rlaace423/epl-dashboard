@@ -27,3 +27,6 @@ if selection == "🏆 1. 리그 오버뷰 (팀 분석)":
 elif selection == "🔍 2. 유망주 탐색 (선수 발굴)":
     # 기존 대시보드 실행
     player_dashboard.show_page()
+
+# 공통 푸터
+st.sidebar.caption("데이터시각화 6조")
