@@ -162,6 +162,7 @@ dependencies = [
     { name = "plotly" },
     { name = "streamlit" },
     { name = "streamlit-plotly-events" },
+    { name = "toml" },
 ]
 
 [package.dev-dependencies]
@@ -176,6 +177,7 @@ requires-dist = [
     { name = "plotly", specifier = "==5.18.0" },
     { name = "streamlit", specifier = "==1.29.0" },
     { name = "streamlit-plotly-events", specifier = "==0.0.6" },
+    { name = "toml", specifier = ">=0.10.2" },
 ]
 
 [package.metadata.requires-dev]
