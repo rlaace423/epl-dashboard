@@ -28,6 +28,6 @@ jobs:
           /home/sam/.local/bin/uv sync --no-dev
 
           echo "🔄 서비스 재시작 중..."
-          pm2 startOrReload pm2.config.js --only epl-dashboard --update-env
+          pm2 startOrReload /home/sam/pm2.config.js --only epl-dashboard --update-env
 
           echo "🎉 배포 완료!"
