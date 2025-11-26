@@ -20,7 +20,14 @@ jobs:
             exit 1
           fi
 
-          rsync -av --exclude='.git' --exclude='.venv' --exclude='__pycache__' ./ "$TARGET_DIR/"
+          rsync -av --delete \
+          --exclude='.git' \
+          --exclude='.github' \
+          --exclude='.venv' \
+          --exclude='__pycache__' \
+          --exclude='logs' \
+          --exclude='.env' \
+          ./ "$TARGET_DIR/"
 
           cd "$TARGET_DIR"
 
