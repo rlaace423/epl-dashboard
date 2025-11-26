@@ -4,15 +4,15 @@ import numpy as np
 import streamlit.components.v1 as components
 import textwrap
 import os
-import toml  # config.toml 파싱을 위해 필요
+import toml
+import base64
+import mimetypes
 
 
 def get_theme_colors():
     """
     .streamlit/config.toml 파일을 읽어 테마에 맞는 배경색과 텍스트 색상을 반환합니다.
-    파일이 없거나 읽을 수 없는 경우 기본값(Dark)을 반환합니다.
     """
-    # 기본값 (Dark Mode)
     default_bg = "#0E1117"
     default_text = "white"
 
@@ -22,20 +22,38 @@ def get_theme_colors():
             with open(config_path, "r", encoding="utf-8") as f:
                 config = toml.load(f)
 
-            # [theme] 섹션의 base 값 확인
             theme_base = config.get("theme", {}).get("base", "dark")
 
             if theme_base == "light":
-                return "#ffffff", "black"  # Light Mode 색상
+                return "#ffffff", "black"
             else:
-                return "#0E1117", "white"  # Dark Mode 색상
+                return "#0E1117", "white"
 
-    except Exception as e:
-        # 파일 읽기 실패 시 기본값 사용
-        print(f"Theme reading error: {e}")
+    except Exception:
         pass
 
     return default_bg, default_text
+
+
+def get_image_base64(file_path):
+    """
+    로컬 이미지 파일을 읽어서 HTML에서 바로 사용할 수 있는 Base64 문자열로 변환합니다.
+    SVG, WebP, PNG 등 다양한 포맷을 지원합니다.
+    """
+    if not os.path.exists(file_path):
+        # 파일이 없으면 빈 문자열 반환 (또는 기본 이미지 경로 설정 가능)
+        return ""
+
+    # 파일 확장자에 따른 MIME 타입 추론 (예: image/svg+xml, image/webp)
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        mime_type = "image/png"  # 기본값
+
+    with open(file_path, "rb") as f:
+        data = f.read()
+        encoded = base64.b64encode(data).decode()
+
+    return f"data:{mime_type};base64,{encoded}"
 
 
 def show_page():
@@ -47,31 +65,31 @@ def show_page():
     # 1. 상단 팀 순위 카드 (가로 스크롤 캐러셀 UI)
     # ---------------------------------------------------------
 
-    # [설정 파일에서 테마 색상 가져오기]
     bg_color, text_color = get_theme_colors()
 
     # [데이터 준비]
+    # 확장자가 섞여 있어도 상관없습니다. 실제 파일명과 경로만 정확하면 됩니다.
     team_rankings = [
         {"rank": 1, "name": "Arsenal", "w": 22, "d": 4, "l": 3, "pts": 70, "gf": 70, "ga": 24,
-         "color": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"},
+         "color": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", "logo": "assets/logos/Arsenal_FC_logo.svg"},
         {"rank": 2, "name": "Man City", "w": 21, "d": 6, "l": 2, "pts": 69, "gf": 68, "ga": 26,
-         "color": "linear-gradient(135deg, #30cfd0 0%, #330867 100%)"},
+         "color": "linear-gradient(135deg, #30cfd0 0%, #330867 100%)", "logo": "assets/logos/Manchester_City_2016.svg"},
         {"rank": 3, "name": "Liverpool", "w": 20, "d": 7, "l": 3, "pts": 67, "gf": 65, "ga": 30,
-         "color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"},
+         "color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", "logo": "assets/logos/Liverpool_FC_logo.svg"},
         {"rank": 4, "name": "Aston Villa", "w": 18, "d": 5, "l": 6, "pts": 59, "gf": 50, "ga": 35,
-         "color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"},
+         "color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", "logo": "assets/logos/Aston_Villa_FC_2015.webp"},
         {"rank": 5, "name": "Tottenham", "w": 17, "d": 6, "l": 6, "pts": 57, "gf": 55, "ga": 39,
-         "color": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"},
+         "color": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", "logo": "assets/logos/Tottenham_Hotspur_FC_logo.svg"},
         {"rank": 6, "name": "Man Utd", "w": 16, "d": 4, "l": 9, "pts": 52, "gf": 45, "ga": 38,
-         "color": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)"},
+         "color": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", "logo": "assets/logos/Manchester_United_FC_logo.svg"},
         {"rank": 7, "name": "Newcastle", "w": 15, "d": 5, "l": 9, "pts": 50, "gf": 48, "ga": 40,
-         "color": "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)"},
+         "color": "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)", "logo": "assets/logos/Newcastle_United_FC_logo.svg"},
         {"rank": 8, "name": "Chelsea", "w": 14, "d": 6, "l": 9, "pts": 48, "gf": 42, "ga": 40,
-         "color": "linear-gradient(135deg, #209cff 0%, #68e0cf 100%)"},
+         "color": "linear-gradient(135deg, #209cff 0%, #68e0cf 100%)", "logo": "assets/logos/Chelsea_FC_logo.svg"},
         {"rank": 9, "name": "West Ham", "w": 13, "d": 7, "l": 10, "pts": 46, "gf": 40, "ga": 44,
-         "color": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)"},
+         "color": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", "logo": "assets/logos/West_Ham_United_FC_logo_(2016).svg"},
         {"rank": 10, "name": "Brighton", "w": 11, "d": 9, "l": 10, "pts": 42, "gf": 38, "ga": 38,
-         "color": "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)"},
+         "color": "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)", "logo": "assets/logos/Brighton_&_Hove_Albion_FC_logo.svg"},
     ]
 
     # [HTML 생성]
@@ -80,9 +98,19 @@ def show_page():
         rank_badge = "🥇" if team['rank'] == 1 else "🥈" if team['rank'] == 2 else "🥉" if team[
                                                                                             'rank'] == 3 else f"{team['rank']}th"
 
+        # [핵심] 로컬 이미지를 Base64로 변환하여 HTML에 주입
+        # 파일이 존재하지 않으면 깨진 이미지 아이콘 대신 빈 공간이 나오도록 처리됨
+        img_src = get_image_base64(team['logo'])
+
+        # 이미지가 있으면 img 태그 사용, 없으면 빈 div (또는 대체 텍스트)
+        img_tag = f'<img src="{img_src}" class="team-logo" alt="{team["name"]}">' if img_src else f'<div class="team-logo-placeholder">⚽</div>'
+
         card_snippet = f"""
         <div class="team-card" style="background: {team['color']};">
-            <div class="rank-badge">{rank_badge}</div>
+            <div class="card-header">
+                <div class="rank-badge">{rank_badge}</div>
+                {img_tag}
+            </div>
             <div class="team-name">{team['name']}</div>
             <div class="team-points">{team['pts']} pts</div>
             <div class="team-stats">
@@ -93,15 +121,15 @@ def show_page():
         """
         cards_html += textwrap.dedent(card_snippet)
 
-    # [HTML/CSS] 읽어온 bg_color와 text_color 변수를 CSS에 주입
+    # [HTML/CSS]
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <style>
         html, body {{
-            background-color: {bg_color} !important; /* 동적 배경색 적용 */
-            color: {text_color} !important;         /* 동적 텍스트 색상 적용 */
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -132,13 +160,13 @@ def show_page():
 
         .team-card {{
             flex: 0 0 220px;
-            height: 280px;
+            height: 320px;
             border-radius: 20px;
-            padding: 20px;
+            padding: 25px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             color: white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             transition: all 0.3s ease;
@@ -152,20 +180,52 @@ def show_page():
             z-index: 10;
         }}
 
+        .card-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+        }}
+
         .rank-badge {{
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+            font-size: 1.2rem;
             background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
+            padding: 5px 12px;
             border-radius: 20px;
             font-weight: bold;
         }}
+
+        /* [핵심 CSS] object-fit: contain 덕분에 이미지가 찌그러지지 않고 비율을 유지하며 박스 안에 들어갑니다 */
+        .team-logo {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain; 
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }}
+
+        .team-logo-placeholder {{
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }}
+
         .team-name {{
             font-size: 1.5rem;
             font-weight: 800;
             margin-bottom: 5px;
             text-align: center;
             text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* 텍스트 가운데 정렬 */
+            line-height: 1.1;
         }}
         .team-points {{
             font-size: 2.2rem;
@@ -194,7 +254,7 @@ def show_page():
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             z-index: 20;
             transition: all 0.2s;
-            color: {text_color}; /* 버튼 아이콘 색상도 동적 적용 */
+            color: {text_color};
             display: flex;
             align-items: center;
             justify-content: center;
@@ -233,7 +293,7 @@ def show_page():
     </html>
     """
 
-    components.html(textwrap.dedent(html_content), height=360)
+    components.html(textwrap.dedent(html_content), height=400)
 
     st.markdown("---")
 
