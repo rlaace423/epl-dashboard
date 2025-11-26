@@ -76,6 +76,13 @@ streamlit run app.py
 - 자동으로 브라우저가 열립니다 (기본: http://localhost:8501)
 - 사이드바에서 필터를 조정하여 원하는 유망주를 찾아보세요!
 
+## 🚀 실행 방법 (uv)
+프로젝트 clone 후 프로젝트 폴더 내에서 아래의 명령어 실행
+```bash
+uv sync
+uv run streamlit run app.py
+```
+
 ## 📊 데이터 구조
 
 ### 선수 정보

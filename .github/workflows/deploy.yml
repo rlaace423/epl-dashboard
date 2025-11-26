@@ -1,0 +1,33 @@
+name: Deploy to Self-Hosted
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Production Folder
+        run: |
+          TARGET_DIR="/home/sam/epl-dashboard"
+
+          if [ ! -d "$TARGET_DIR" ]; then
+            echo "❌ 배포 폴더를 찾을 수 없습니다: $TARGET_DIR"
+            exit 1
+          fi
+
+          rsync -av --exclude='.git' --exclude='.venv' --exclude='__pycache__' ./ "$TARGET_DIR/"
+
+          cd "$TARGET_DIR"
+
+          echo "📦 의존성 동기화 중..."
+          /home/sam/.local/bin/uv sync --no-dev
+
+          echo "🔄 서비스 재시작 중..."
+          pm2 startOrReload pm2.config.js --only epl-dashboard --update-env
+
+          echo "🎉 배포 완료!"
