@@ -69,7 +69,13 @@ def custom_min_max_scale(series):
 # 분석 함수: 선택된 팀의 강점/약점을 분석하여 문구 생성
 # ---------------------------------------------------------
 def analyze_team_performance(team_name: str, df_scaled: pd.DataFrame, df_raw: pd.DataFrame):
-    # 1. 득점 순위(Rank) 부여
+    """
+    선택된 팀의 총 득점 순위(Gls_Rank)를 기준으로 상위권/중위권/하위권을 판단하고, 
+    13가지 확장 지표를 분석하여 포지션별 강점/약점 및 영입 포지션 제안 문구를 반환합니다.
+    """
+    
+    # 1. 득점 순위(Rank) 부여 및 데이터 준비
+    # (주의: df_raw는 전체 20팀을 포함해야 Gls_Rank가 정확함)
     df_ranked = df_raw.copy()
     # Gls 기준 내림차순 정렬 후 순위 컬럼 추가 (1부터 시작)
     df_ranked['Gls_Rank'] = df_ranked['Gls'].rank(ascending=False, method='min').astype(int)
@@ -78,52 +84,100 @@ def analyze_team_performance(team_name: str, df_scaled: pd.DataFrame, df_raw: pd
     team_data_raw = df_raw[df_raw['Squad'] == team_name].iloc[0]
     team_rank = df_ranked[df_ranked['Squad'] == team_name].iloc[0]['Gls_Rank']
 
-    # 2. 득점 순위 기준 Tier 분류
+    # 2. 득점 순위 기준 Tier 분류 (상위 7, 중위 8-14, 하위 15-20)
     if team_rank <= 7:
         rank_tier = "상위권"
-        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier}의 압도적인 공격력을 보여주고 있습니다."
     elif team_rank <= 14:
         rank_tier = "중위권"
-        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier} 수준의 균형 잡힌 공격력을 갖추고 있습니다."
     else:
         rank_tier = "하위권"
-        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier}의 득점력 부족이 심각합니다."  
-    
-    # 3. 상세 강점/약점 분석
-    STRENGTH_THRESHOLD = 0.75
-    WEAKNESS_THRESHOLD = 0.25
+        
+    # 3. 상세 강점/약점 분석 및 포지션 매칭
+    STRENGTH_THRESHOLD = 0.75 # 상위 25%
+    WEAKNESS_THRESHOLD = 0.25 # 하위 25%
 
-    strengths = []
-    weaknesses = []
-    
-    analysis_metrics = {
-        'Gls': ('득점력', '골 결정력'),
-        'Ast': ('어시스트 능력', '어시스트 부족'), 
-        'G+A': ('공격 포인트 생산성', '공격 포인트 부족'),
-        'xG': ('공격 기회 창출력', '기대 득점'), 
-        'Poss': ('볼 점유율', '경기 주도권'), 
-        'CrdY': ('클린 플레이', '잦은 반칙 (징계)'), 
-        'PrgP': ('전진 패스 성공', '전방 압박 돌파')
+    all_strengths = []
+    all_weaknesses = []
+    recruitment_recommendations = set() # 중복 방지를 위해 set 사용
+
+    # 포지션 및 지표 매핑 (13가지 확장 지표)
+    RECRUITMENT_METRICS = {
+        '공격수/피니셔': {
+            'Gls': ('득점력', '골 결정력'), 'G/SoT': ('슈팅 효율', '슈팅 정확도')
+        },
+        '플레이메이커/윙어': {
+            'Ast': ('어시스트 능력', '어시스트 부족'), 'SCA90': ('기회 창출력', '기회 창출 부족'), 'G+A': ('공격 포인트 생산성', '공격 포인트 부족')
+        },
+        '미드필더/빌드업': {
+            'Cmp%': ('패스 성공률', '패스 정확도'), 'PrgDist': ('공격 전개 깊이', '수직 패스 부족'), 
+        },
+        '볼 위닝/수비수': {
+            'Tkl%': ('태클 성공률', '태클 실패율'), 'Int': ('수비 공간 인지력', '인터셉트 부족'),
+        },
+        '수비 조직력/CB': {
+            'xGA': ('수비 구조 안정성', '허용 기대 득점'), # NOTE: xGA는 역방향 처리되어 df_scaled에서 높은 값이 좋음
+        },
+        '골키퍼': {
+            'Save%': ('선방률', '선방 부족')
+        },
+        '공격 볼륨': { # 공격 전반의 볼륨 측정
+             'SoT/90': ('슈팅 집중도', '슈팅 볼륨 부족'),
+        }
     }
 
-    for col, (good_name, bad_name) in analysis_metrics.items():
-        score = team_data_scaled[col]
-        if score >= STRENGTH_THRESHOLD:
-            strengths.append(f"**{good_name}** ({team_data_raw[col]:.1f})")
-        elif score <= WEAKNESS_THRESHOLD:
-            weaknesses.append(f"**{bad_name}** ({team_data_raw[col]:.1f})")
-    
-    strength_msg_detail = f"- 🥇 기타 강점: {', '.join(strengths)}" if strengths else "🥇 기타 강점: 특별히 두드러지는 강점은 없습니다."
-    weakness_msg_detail = f"- 📉 주요 약점: {', '.join(weaknesses)}" if weaknesses else "📉 주요 약점: 심각한 약점은 발견되지 않았습니다."
+    # 5가지 카테고리별로 반복하며 강점/약점 분석
+    for category, metrics in RECRUITMENT_METRICS.items():
+        category_has_weakness = False
+        
+        for col, (good_name, bad_name) in metrics.items():
+            score = team_data_scaled[col]
+            raw_value = team_data_raw[col]
+            
+            # ⬇️ 강점 (빨간색, 상위 25%)
+            if score >= STRENGTH_THRESHOLD:
+                all_strengths.append(f"**{good_name}** ({raw_value:.1f})")
+            
+            # ⬇️ 약점 (파란색, 하위 25%)
+            elif score <= WEAKNESS_THRESHOLD:
+                all_weaknesses.append(f"**{bad_name}** ({raw_value:.1f})")
+                category_has_weakness = True
+                
+        # 약점이 발견된 카테고리에 대해 포지션 추천 목록에 추가
+        if category_has_weakness:
+            recruitment_recommendations.add(category) # 중복 방지
 
+    # 6. 최종 메시지 조합
+    
+    # 득점 순위 기반 요약 문장 생성
+    if team_rank <= 7:
+        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier}의 압도적인 공격력을 보여주고 있습니다."
+    elif team_rank <= 14:
+        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier} 수준의 균형 잡힌 공격력을 갖추고 있습니다."
+    else:
+        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier}의 득점력 부족이 심각합니다."
+    
+    # 상세 분석 문구
+    strength_msg_detail = f" 🥇 주요 강점: {', '.join(all_strengths)}" if all_strengths else " 🥇 주요 강점: 특별히 두드러지는 강점은 없습니다."
+    weakness_msg_detail = f" 📉 주요 약점: {', '.join(all_weaknesses)}" if all_weaknesses else " 📉 주요 약점: 심각한 약점은 발견되지 않았습니다."
+
+    # 영입 제안 문구
+    if recruitment_recommendations:
+        recommendation_list = ', '.join(sorted(list(recruitment_recommendations)))
+        recommendation_msg = (
+            f"🎯 **유망주 영입 포지션 제안:**\n팀의 약점을 보완하기 위해 **{recommendation_list}** 포지션의 유망주 영입을 고려해야 합니다."
+        )
+    else:
+        recommendation_msg = "🎯 **유망주 영입 포지션 제안:**\n모든 핵심 포지션이 안정적이므로, 스쿼드 뎁스 강화 위주로 전략을 세우세요."
+
+    # 전체 메시지 통합 (줄바꿈 \n 사용)
     message = (
         f"👉 분석 결과 ({rank_tier}): {summary_line}\n\n"
         f"{strength_msg_detail}\n\n"
-        f"{weakness_msg_detail}"
+        f"{weakness_msg_detail}\n\n"
+        f"{recommendation_msg}"
     )
     
     return message, rank_tier
-
 
 def show_page():
     st.title("🏆 프리미어 리그(EPL) 팀 분석")
@@ -139,26 +193,46 @@ def show_page():
     # [데이터 준비]
     # 확장자가 섞여 있어도 상관없습니다. 실제 파일명과 경로만 정확하면 됩니다.
     team_rankings = [
-        {"rank": 1, "name": "Arsenal", "w": 22, "d": 4, "l": 3, "pts": 70, "gf": 70, "ga": 24,
-         "color": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", "logo": "assets/logos/Arsenal_FC_logo.svg"},
-        {"rank": 2, "name": "Man City", "w": 21, "d": 6, "l": 2, "pts": 69, "gf": 68, "ga": 26,
-         "color": "linear-gradient(135deg, #30cfd0 0%, #330867 100%)", "logo": "assets/logos/Manchester_City_2016.svg"},
-        {"rank": 3, "name": "Liverpool", "w": 20, "d": 7, "l": 3, "pts": 67, "gf": 65, "ga": 30,
-         "color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", "logo": "assets/logos/Liverpool_FC_logo.svg"},
-        {"rank": 4, "name": "Aston Villa", "w": 18, "d": 5, "l": 6, "pts": 59, "gf": 50, "ga": 35,
-         "color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", "logo": "assets/logos/Aston_Villa_FC_2015.webp"},
-        {"rank": 5, "name": "Tottenham", "w": 17, "d": 6, "l": 6, "pts": 57, "gf": 55, "ga": 39,
-         "color": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", "logo": "assets/logos/Tottenham_Hotspur_FC_logo.svg"},
-        {"rank": 6, "name": "Man Utd", "w": 16, "d": 4, "l": 9, "pts": 52, "gf": 45, "ga": 38,
-         "color": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", "logo": "assets/logos/Manchester_United_FC_logo.svg"},
-        {"rank": 7, "name": "Newcastle", "w": 15, "d": 5, "l": 9, "pts": 50, "gf": 48, "ga": 40,
-         "color": "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)", "logo": "assets/logos/Newcastle_United_FC_logo.svg"},
-        {"rank": 8, "name": "Chelsea", "w": 14, "d": 6, "l": 9, "pts": 48, "gf": 42, "ga": 40,
-         "color": "linear-gradient(135deg, #209cff 0%, #68e0cf 100%)", "logo": "assets/logos/Chelsea_FC_logo.svg"},
-        {"rank": 9, "name": "West Ham", "w": 13, "d": 7, "l": 10, "pts": 46, "gf": 40, "ga": 44,
-         "color": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", "logo": "assets/logos/West_Ham_United_FC_logo_(2016).svg"},
-        {"rank": 10, "name": "Brighton", "w": 11, "d": 9, "l": 10, "pts": 42, "gf": 38, "ga": 38,
-         "color": "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)", "logo": "assets/logos/Brighton_&_Hove_Albion_FC_logo.svg"},
+        {"rank": 1, "name": "Liverpool", "w": 25, "d": 9,  "l": 4,  "pts": 84, "gf": 86, "ga": 41,
+        "color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", "logo": "assets/logos/Liverpool_FC_logo.svg"},
+        {"rank": 2, "name": "Arsenal", "w": 20, "d": 14, "l": 4,  "pts": 74, "gf": 69, "ga": 34,
+        "color": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", "logo": "assets/logos/Arsenal_FC_logo.svg"},
+        {"rank": 3, "name": "Manchester City", "w": 21, "d": 8,  "l": 9,  "pts": 71, "gf": 72, "ga": 44,
+        "color": "linear-gradient(135deg, #30cfd0 0%, #330867 100%)", "logo": "assets/logos/Manchester_City_2016.svg"},
+        {"rank": 4, "name": "Chelsea", "w": 20, "d": 9,  "l": 9,  "pts": 69, "gf": 64, "ga": 43,
+        "color": "linear-gradient(135deg, #209cff 0%, #68e0cf 100%)", "logo": "assets/logos/Chelsea_FC_logo.svg"},
+        {"rank": 5, "name": "Newcastle Utd", "w": 20, "d": 6,  "l": 12, "pts": 66, "gf": 68, "ga": 47,
+        "color": "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)", "logo": "assets/logos/Newcastle_United_FC_logo.svg"},
+        {"rank": 6, "name": "Aston Villa", "w": 19, "d": 9,  "l": 10, "pts": 66, "gf": 58, "ga": 51,
+        "color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", "logo": "assets/logos/Aston_Villa_FC_2015.webp"},
+        {"rank": 7, "name": "Nottingham Forest", "w": 19, "d": 8,  "l": 11, "pts": 65, "gf": 58, "ga": 46,
+        "color": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", "logo": "assets/logos/Nottingham_Forest_FC_logo_(red,_two_stars_below).webp"},
+        {"rank": 8, "name": "Brighton", "w": 16, "d": 13, "l": 9,  "pts": 61, "gf": 66, "ga": 59,
+        "color": "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)", "logo": "assets/logos/Brighton_&_Hove_Albion_FC_logo.svg"},
+        {"rank": 9, "name": "Bournemouth", "w": 15, "d": 11, "l": 12, "pts": 56, "gf": 58, "ga": 46,
+        "color": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", "logo": "assets/logos/AFC_Bournemouth_logo_(introduced_2013).svg"},
+        {"rank": 10, "name": "Brentford", "w": 16, "d": 8,  "l": 14, "pts": 56, "gf": 66, "ga": 57,
+        "color": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", "logo": "assets/logos/Brentford_FC_2017.webp"},
+        # {"rank": 11, "name": "Fulham", "w": 15, "d": 9,  "l": 14, "pts": 54, "gf": 54, "ga": 54,
+        #  "color": "linear-gradient(135deg, #f6d365 0%, #fda085 100%)", "logo": "assets/logos/Fulham_FC_logo.svg"},
+        # {"rank": 12, "name": "Crystal Palace", "w": 13, "d": 14, "l": 11, "pts": 53, "gf": 51, "ga": 51,
+        #  "color": "linear-gradient(135deg, #cfd9df 0%, #e2ebf0 100%)", "logo": "assets/logos/Crystal_Palace_FC_logo.svg"},
+        # {"rank": 13, "name": "Everton", "w": 11, "d": 15, "l": 12, "pts": 48, "gf": 42, "ga": 44,
+        #  "color": "linear-gradient(135deg, #74ebd5 0%, #9face6 100%)", "logo": "assets/logos/Everton_FC_logo.svg"},
+        # {"rank": 14, "name": "West Ham", "w": 11, "d": 10, "l": 17, "pts": 43, "gf": 46, "ga": 62,
+        #  "color": "linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)", "logo": "assets/logos/West_Ham_United_FC_logo.svg"},
+        # {"rank": 15, "name": "Manchester Utd", "w": 11, "d": 9,  "l": 18, "pts": 42, "gf": 44, "ga": 54,
+        #  "color": "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)", "logo": "assets/logos/Manchester_United_FC_logo.svg"},
+        # {"rank": 16, "name": "Wolves", "w": 12, "d": 6,  "l": 20, "pts": 42, "gf": 54, "ga": 69,
+        #  "color": "linear-gradient(135deg, #fdcbf1 0%, #cfd9df 100%)", "logo": "assets/logos/Wolverhampton_Wanderers_FC_logo.svg"},
+        # {"rank": 17, "name": "Tottenham", "w": 11, "d": 5,  "l": 22, "pts": 38, "gf": 64, "ga": 65,
+        #  "color": "linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)", "logo": "assets/logos/Tottenham_Hotspur_FC_logo.svg"},
+        # {"rank": 18, "name": "Leicester City", "w": 6,  "d": 7,  "l": 25, "pts": 25, "gf": 33, "ga": 80,
+        #  "color": "linear-gradient(135deg, #f6d365 0%, #fda085 100%)", "logo": "assets/logos/Leicester_City_FC_logo.svg"},
+        # {"rank": 19, "name": "Ipswich Town", "w": 4,  "d": 10, "l": 24, "pts": 22, "gf": 36, "ga": 82,
+        #  "color": "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)", "logo": "assets/logos/Ipswich_Town_FC_logo.svg"},
+        # {"rank": 20, "name": "Southampton", "w": 2,  "d": 6,  "l": 30, "pts": 12, "gf": 26, "ga": 86,
+        #  "color": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", "logo": "assets/logos/Southampton_FC_logo.svg"},
     ]
 
     # [HTML 생성]
@@ -365,10 +439,14 @@ def show_page():
     components.html(textwrap.dedent(html_content), height=400)
 
     st.markdown("---")
-# ---------------------------------------------------------
+    # ---------------------------------------------------------
     # 2. 팀별 지표 히트맵 (CSV 파일 사용)
     # ---------------------------------------------------------
-# --- 데이터 로딩 ---
+    team_order_list = ['Liverpool', 'Arsenal', 'Man City', 'Chelsea', 'Newcastle Utd', 
+    'Aston Villa', 'Tottenham', 'Brighton', 'Man Utd', 'West Ham', 
+    'Fulham', 'Crystal Palace', 'Everton', 'Wolves', 'Nott\'ham Forest', 
+    'Brentford', 'Bournemouth', 'Leicester City', 'Ipswich Town', 'Southampton']
+    # --- 데이터 로딩 ---
     try:
         df_raw = pd.read_csv(CSV_FILE)
     except FileNotFoundError:
@@ -378,42 +456,51 @@ def show_page():
         st.error(f"데이터 로딩 중 오류 발생: {e}")
         return
 
-    # --- 데이터 전처리 및 정규화 ---
+    # --- 필터링 로직 ---
     st.subheader("필터 설정")
+    df_raw['Squad'] = pd.Categorical(df_raw['Squad'], categories=team_order_list, ordered=True)
+    df_raw = df_raw.sort_values('Squad').reset_index(drop=True)
+
+
     filter_option = st.radio(
         "📊 표시할 팀 범위를 선택하세요:",
-        ('상위 10개 팀 (득점 기준)', '전체 20개 팀'),
+        ('상위 10개 팀 (승점 순)', '전체 20개 팀'),
         horizontal=True
     )
-    
 
-    df_raw = df_raw.sort_values(by='Gls', ascending=False).reset_index(drop=True)
-
-    if filter_option == '상위 10개 팀 (득점 기준)':
+    if filter_option == '상위 10개 팀 (승점 순)':
         df_display = df_raw.head(10).copy()
-        st.info("✅ **총 득점(Gls) 기준 상위 10개 팀**만 히트맵에 표시됩니다.")
+        st.info("✅ **승점 순위 기준 상위 10개 팀**만 히트맵에 표시됩니다.")
         map_height = 600
     else:
         df_display = df_raw.copy()
         map_height = 800
-        st.info("✅ 현재 **전체 20개 팀**이 표시됩니다.")
+        st.info("✅ **전체 20개 팀**이 표시됩니다.")
 
+
+    # --- 데이터 전처리 및 정규화 (13가지 확장 지표) ---
+    # 유망주 분석을 위한 13가지 확장 지표 정의
     final_cols_map = {
-        'Gls': '득점', 'Ast': '어시스트', 'G+A': '공격 포인트', 'Poss': '점유율',
-        'xG': '기대 득점', 'xAG': '기대 도움', 'PrgP': '전진 패스', 'CrdY': '반칙 (적음)'
+        'Gls': '득점', 'Ast': '어시스트', 'G+A': '공격 포인트', 'G/SoT': '득점 효율',
+        'SoT/90': '슈팅 집중도', 'SCA90': '기회 창출력', 'Save%': '선방률',
+        'Tkl%': '태클 성공률', 'Cmp%': '패스 성공률','xGA': '허용 기대 득점', 'Int': '인터셉트',        'PrgDist': '전진 패스 거리'
     }
 
     numeric_cols = list(final_cols_map.keys())
     df_data = df_display[['Squad'] + numeric_cols].copy()
-    
+
+    # 1. Min-Max 정규화 적용
     df_scaled = df_data.copy()
     df_scaled[numeric_cols] = df_data[numeric_cols].apply(custom_min_max_scale)
-    
+
+    # 2. 역방향 처리 (수비 지표는 낮을수록 좋음)
+    df_scaled['xGA'] = 1 - df_scaled['xGA'] # 🚨 허용 기대 득점(xGA): 낮을수록 좋음 (역방향)
+
     teams = df_scaled['Squad'].tolist()
     metrics = list(final_cols_map.values())
     data_for_heatmap = df_scaled[numeric_cols].values
-    
-    
+
+
     # 2-1. 팀 선택 위젯 추가
     selected_team = st.selectbox(
         "🔎 **상세 분석을 원하는 팀을 선택하세요:**",
@@ -436,12 +523,12 @@ def show_page():
     ))
 
     fig.update_layout(
-        title='EPL 전체 20개팀 퍼포먼스 비교 (2024-2025 시즌 최종 데이터)',
-        height=800, 
+        title=f'EPL {filter_option} 퍼포먼스 비교 (2024-2025 시즌 최종 데이터)',
+        height=map_height, 
         xaxis_nticks=len(metrics),
         plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=10, r=10, t=50, b=10),
-        yaxis=dict(autorange="reversed")
+        yaxis=dict(autorange="reversed") # 득점 순 1위가 맨 위에 오도록 역순 정렬
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -450,14 +537,5 @@ def show_page():
     # 3. 분석 결과 (선택된 팀 기반 동적 생성)
     # ---------------------------------------------------------
     st.subheader(f"✨ **{selected_team}** 팀 상세 분석 결과")
-    
     analysis_message, analysis_status = analyze_team_performance(selected_team, df_scaled, df_raw)
-
-    if "강점" in analysis_message and "약점" not in analysis_message:
-        st.success(analysis_message)
-    elif "약점" in analysis_message and "강점" not in analysis_message:
-        st.warning(analysis_message)
-    elif "균형 잡힌 중위권" in analysis_message:
-        st.info(analysis_message)
-    else: 
-        st.success(analysis_message)
+    st.markdown(analysis_message)
