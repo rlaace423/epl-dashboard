@@ -443,9 +443,10 @@ def show_page():
     # 2. 팀별 지표 히트맵 (CSV 파일 사용)
     # ---------------------------------------------------------
     team_order_list = ['Liverpool', 'Arsenal', 'Man City', 'Chelsea', 'Newcastle Utd', 
-    'Aston Villa', 'Tottenham', 'Brighton', 'Man Utd', 'West Ham', 
-    'Fulham', 'Crystal Palace', 'Everton', 'Wolves', 'Nott\'ham Forest', 
-    'Brentford', 'Bournemouth', 'Leicester City', 'Ipswich Town', 'Southampton']
+    'Aston Villa', 'Nott\'ham Forest',  'Brighton','Bournemouth',  'Brentford',
+    'Fulham','Crystal Palace','Everton', 'West Ham', 'Man Utd', 
+    'Wolves','Tottenham', 'Leicester City', 'Ipswich Town', 'Southampton']
+    
     # --- 데이터 로딩 ---
     try:
         df_raw = pd.read_csv(CSV_FILE)
