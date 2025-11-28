@@ -1,6 +1,7 @@
+import pandas as pd
+import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
-import numpy as np
 import streamlit.components.v1 as components
 import textwrap
 import os
@@ -8,6 +9,7 @@ import toml
 import base64
 import mimetypes
 
+CSV_FILE = 'epl_2024_2025_full_stats.csv'
 
 def get_theme_colors():
     """
@@ -54,6 +56,73 @@ def get_image_base64(file_path):
         encoded = base64.b64encode(data).decode()
 
     return f"data:{mime_type};base64,{encoded}"
+
+
+def custom_min_max_scale(series):
+    min_val = series.min()
+    max_val = series.max()
+    if max_val == min_val:
+        return series
+    return (series - min_val) / (max_val - min_val)
+    
+# ---------------------------------------------------------
+# 분석 함수: 선택된 팀의 강점/약점을 분석하여 문구 생성
+# ---------------------------------------------------------
+def analyze_team_performance(team_name: str, df_scaled: pd.DataFrame, df_raw: pd.DataFrame):
+    # 1. 득점 순위(Rank) 부여
+    df_ranked = df_raw.copy()
+    # Gls 기준 내림차순 정렬 후 순위 컬럼 추가 (1부터 시작)
+    df_ranked['Gls_Rank'] = df_ranked['Gls'].rank(ascending=False, method='min').astype(int)
+    
+    team_data_scaled = df_scaled[df_scaled['Squad'] == team_name].iloc[0]
+    team_data_raw = df_raw[df_raw['Squad'] == team_name].iloc[0]
+    team_rank = df_ranked[df_ranked['Squad'] == team_name].iloc[0]['Gls_Rank']
+
+    # 2. 득점 순위 기준 Tier 분류
+    if team_rank <= 7:
+        rank_tier = "상위권"
+        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier}의 압도적인 공격력을 보여주고 있습니다."
+    elif team_rank <= 14:
+        rank_tier = "중위권"
+        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier} 수준의 균형 잡힌 공격력을 갖추고 있습니다."
+    else:
+        rank_tier = "하위권"
+        summary_line = f"**{team_name}** 팀은 **총 득점 {team_rank}위**로, 리그 {rank_tier}의 득점력 부족이 심각합니다."  
+    
+    # 3. 상세 강점/약점 분석
+    STRENGTH_THRESHOLD = 0.75
+    WEAKNESS_THRESHOLD = 0.25
+
+    strengths = []
+    weaknesses = []
+    
+    analysis_metrics = {
+        'Gls': ('득점력', '골 결정력'),
+        'Ast': ('어시스트 능력', '어시스트 부족'), 
+        'G+A': ('공격 포인트 생산성', '공격 포인트 부족'),
+        'xG': ('공격 기회 창출력', '기대 득점'), 
+        'Poss': ('볼 점유율', '경기 주도권'), 
+        'CrdY': ('클린 플레이', '잦은 반칙 (징계)'), 
+        'PrgP': ('전진 패스 성공', '전방 압박 돌파')
+    }
+
+    for col, (good_name, bad_name) in analysis_metrics.items():
+        score = team_data_scaled[col]
+        if score >= STRENGTH_THRESHOLD:
+            strengths.append(f"**{good_name}** ({team_data_raw[col]:.1f})")
+        elif score <= WEAKNESS_THRESHOLD:
+            weaknesses.append(f"**{bad_name}** ({team_data_raw[col]:.1f})")
+    
+    strength_msg_detail = f"- 🥇 기타 강점: {', '.join(strengths)}" if strengths else "🥇 기타 강점: 특별히 두드러지는 강점은 없습니다."
+    weakness_msg_detail = f"- 📉 주요 약점: {', '.join(weaknesses)}" if weaknesses else "📉 주요 약점: 심각한 약점은 발견되지 않았습니다."
+
+    message = (
+        f"👉 분석 결과 ({rank_tier}): {summary_line}\n\n"
+        f"{strength_msg_detail}\n\n"
+        f"{weakness_msg_detail}"
+    )
+    
+    return message, rank_tier
 
 
 def show_page():
@@ -296,23 +365,68 @@ def show_page():
     components.html(textwrap.dedent(html_content), height=400)
 
     st.markdown("---")
+# ---------------------------------------------------------
+    # 2. 팀별 지표 히트맵 (CSV 파일 사용)
+    # ---------------------------------------------------------
+# --- 데이터 로딩 ---
+    try:
+        df_raw = pd.read_csv(CSV_FILE)
+    except FileNotFoundError:
+        st.error(f"오류: 데이터 파일 '{CSV_FILE}'을(를) 찾을 수 없습니다. 파일을 확인해주세요.")
+        return
+    except Exception as e:
+        st.error(f"데이터 로딩 중 오류 발생: {e}")
+        return
 
-    # ---------------------------------------------------------
-    # 2. 팀별 지표 히트맵
-    # ---------------------------------------------------------
+    # --- 데이터 전처리 및 정규화 ---
+    st.subheader("필터 설정")
+    filter_option = st.radio(
+        "📊 표시할 팀 범위를 선택하세요:",
+        ('상위 10개 팀 (득점 기준)', '전체 20개 팀'),
+        horizontal=True
+    )
+    
+
+    df_raw = df_raw.sort_values(by='Gls', ascending=False).reset_index(drop=True)
+
+    if filter_option == '상위 10개 팀 (득점 기준)':
+        df_display = df_raw.head(10).copy()
+        st.info("✅ **총 득점(Gls) 기준 상위 10개 팀**만 히트맵에 표시됩니다.")
+        map_height = 600
+    else:
+        df_display = df_raw.copy()
+        map_height = 800
+        st.info("✅ 현재 **전체 20개 팀**이 표시됩니다.")
+
+    final_cols_map = {
+        'Gls': '득점', 'Ast': '어시스트', 'G+A': '공격 포인트', 'Poss': '점유율',
+        'xG': '기대 득점', 'xAG': '기대 도움', 'PrgP': '전진 패스', 'CrdY': '반칙 (적음)'
+    }
+
+    numeric_cols = list(final_cols_map.keys())
+    df_data = df_display[['Squad'] + numeric_cols].copy()
+    
+    df_scaled = df_data.copy()
+    df_scaled[numeric_cols] = df_data[numeric_cols].apply(custom_min_max_scale)
+    
+    teams = df_scaled['Squad'].tolist()
+    metrics = list(final_cols_map.values())
+    data_for_heatmap = df_scaled[numeric_cols].values
+    
+    
+    # 2-1. 팀 선택 위젯 추가
+    selected_team = st.selectbox(
+        "🔎 **상세 분석을 원하는 팀을 선택하세요:**",
+        options=teams,
+        index=teams.index("Liverpool") if "Liverpool" in teams else 0 
+    )
+
+    # 2-2. 히트맵 시각화
     st.subheader("📊 팀별 세부 지표 분석 (Heatmap)")
     st.info("💡 붉은색이 진할수록 해당 지표에서 리그 상위권임을 의미합니다. 푸른색은 약점을 나타냅니다.")
 
-    # [목업 데이터 생성]
-    teams = ['Arsenal', 'Man City', 'Liverpool', 'Aston Villa', 'Tottenham', 'Man Utd', 'Newcastle', 'Chelsea',
-             'West Ham', 'Brighton']
-    metrics = ['득점력', '유효슈팅', '패스성공률', '점유율', '태클성공', '공중볼', '활동량', '압박성공']
-
-    np.random.seed(42)
-    data = np.random.rand(len(teams), len(metrics))
-
     fig = go.Figure(data=go.Heatmap(
-        z=data,
+        z=data_for_heatmap,
         x=metrics,
         y=teams,
         colorscale='RdBu_r',
@@ -322,13 +436,28 @@ def show_page():
     ))
 
     fig.update_layout(
-        title='EPL 상위 10개팀 퍼포먼스 비교',
-        height=600,
-        xaxis_nticks=36,
+        title='EPL 전체 20개팀 퍼포먼스 비교 (2024-2025 시즌 최종 데이터)',
+        height=800, 
+        xaxis_nticks=len(metrics),
         plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=10, r=10, t=50, b=10)
+        margin=dict(l=10, r=10, t=50, b=10),
+        yaxis=dict(autorange="reversed")
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
-    st.success("👉 분석 결과: 현재 우리 팀은 **'골 결정력'**과 **'유효슈팅'** 부문에서 약세를 보이고 있습니다. 이를 해결할 공격수 유망주를 찾아봅시다.")
+    # ---------------------------------------------------------
+    # 3. 분석 결과 (선택된 팀 기반 동적 생성)
+    # ---------------------------------------------------------
+    st.subheader(f"✨ **{selected_team}** 팀 상세 분석 결과")
+    
+    analysis_message, analysis_status = analyze_team_performance(selected_team, df_scaled, df_raw)
+
+    if "강점" in analysis_message and "약점" not in analysis_message:
+        st.success(analysis_message)
+    elif "약점" in analysis_message and "강점" not in analysis_message:
+        st.warning(analysis_message)
+    elif "균형 잡힌 중위권" in analysis_message:
+        st.info(analysis_message)
+    else: 
+        st.success(analysis_message)
