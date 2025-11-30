@@ -1,8 +1,6 @@
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-# todo
-# from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
 from data_processor import FootballDataProcessor
@@ -14,12 +12,12 @@ def show_page():
     @st.cache_data
     def load_data():
         """데이터 로드 및 처리 (캐싱)"""
-        processor = FootballDataProcessor('dataset.csv')
+        processor = FootballDataProcessor('dataset_new.csv')
         df = processor.process_all()
         return df, processor
 
     # 데이터 로드
-    with st.spinner('데이터를 로딩 중입니다... (약 16만 명의 선수 데이터)'):
+    with st.spinner('데이터를 로딩 중입니다...'):
         df, processor = load_data()
 
     # 타이틀
@@ -201,7 +199,8 @@ def show_page():
     # 능력치 필터 적용 (포지션별 스텟 필터)
     for stat_name, min_value in stat_filters.items():
         if min_value > 0:  # 0보다 큰 값만 필터로 적용
-            df_filtered = df_filtered[df_filtered[stat_name] >= min_value]
+            if stat_name in df_filtered.columns:
+                df_filtered = df_filtered[df_filtered[stat_name] >= min_value]
 
     # 상위 유망주 추출
     top_talents = df_filtered.nlargest(top_n_display, 'Talent_Score_Normalized')
@@ -320,7 +319,11 @@ def show_page():
                 if active_stats and selected_position != 'All':
                     # 각 능력치의 실제 값을 사용하여 평균 계산 (동등 가중치)
                     # 슬라이더 값은 필터링에만 사용되고, 점수는 실제 능력치 값의 평균으로 계산
-                    df_score['Filter_Score'] = df_score[active_stats].mean(axis=1)
+                    available_active_stats = [s for s in active_stats if s in df_score.columns]
+                    if available_active_stats:
+                        df_score['Filter_Score'] = df_score[available_active_stats].mean(axis=1)
+                    else:
+                        df_score['Filter_Score'] = df_score['Overall_Rating']
 
                     # 나이 가중치 적용
                     age_weight = np.where(df_score['Age'] <= 21, 1.2,
@@ -458,10 +461,9 @@ def show_page():
                         tickvals=list(range(len(df_display))),
                         ticktext=df_display['Display_Name'].tolist()
                     ),
-                    # plot_bgcolor='rgba(248,248,248,0.8)',
-                    plot_bgcolor='rgba(0,0,0,0)',  # [중요] 배경 완전 투명
-                    paper_bgcolor='rgba(0,0,0,0)',  # [중요] 배경 완전 투명
-                    template='plotly_dark',  # 다크 템플릿
+                    plot_bgcolor='rgba(0,0,0,0)',  # 배경 투명
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    template='plotly_dark',
                     showlegend=False
                 )
 
@@ -701,6 +703,9 @@ def show_page():
                 compare_attrs = ['Age', 'Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating',
                                  'Pace', 'Passing', 'Finishing', 'Talent_Score_Normalized']
 
+            # 존재하는 컬럼만 사용
+            compare_attrs = [a for a in compare_attrs if a in top_compare.columns]
+
             # 데이터 준비
             compare_data = top_compare[compare_attrs + ['Name', 'Position_Category']].copy()
 
@@ -822,6 +827,9 @@ def show_page():
                     else:
                         key_stats = ['Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating']
 
+                    # 존재하는 컬럼만 사용
+                    key_stats = [s for s in key_stats if s in top_compare.columns]
+
                     fig_bar_compare = go.Figure()
 
                     for player_name in selected_players:
@@ -921,22 +929,22 @@ def show_page():
 
         if len(df_filtered) > 0:
             # 포지션별 통계
-            position_stats = df_filtered.groupby('Position_Category').agg({
+            position_stats_df = df_filtered.groupby('Position_Category').agg({
                 'Talent_Score_Normalized': ['mean', 'max', 'count'],
                 'Overall_Rating': 'mean',
                 'Age': 'mean'
             }).round(2)
 
-            position_stats.columns = ['평균 유망주 점수', '최고 유망주 점수', '선수 수', '평균 능력치', '평균 나이']
-            position_stats = position_stats.reset_index()
-            position_stats.columns = ['포지션', '평균 유망주 점수', '최고 유망주 점수', '선수 수', '평균 능력치', '평균 나이']
+            position_stats_df.columns = ['평균 유망주 점수', '최고 유망주 점수', '선수 수', '평균 능력치', '평균 나이']
+            position_stats_df = position_stats_df.reset_index()
+            position_stats_df.columns = ['포지션', '평균 유망주 점수', '최고 유망주 점수', '선수 수', '평균 능력치', '평균 나이']
 
             col1, col2 = st.columns(2)
 
             with col1:
                 # 포지션별 평균 유망주 점수
                 fig_pos_avg = px.bar(
-                    position_stats,
+                    position_stats_df,
                     x='포지션',
                     y='평균 유망주 점수',
                     color='평균 유망주 점수',
@@ -949,7 +957,7 @@ def show_page():
             with col2:
                 # 포지션별 선수 수
                 fig_pos_count = px.pie(
-                    position_stats,
+                    position_stats_df,
                     values='선수 수',
                     names='포지션',
                     title='포지션별 선수 분포',
@@ -960,7 +968,7 @@ def show_page():
 
             # 포지션별 통계 테이블
             st.subheader("포지션별 상세 통계")
-            st.dataframe(position_stats, use_container_width=True)
+            st.dataframe(position_stats_df, use_container_width=True)
 
             # 포지션별 능력치 비교 (박스 플롯)
             st.subheader("포지션별 능력치 분포 비교")
@@ -968,13 +976,14 @@ def show_page():
             fig_box = go.Figure()
 
             for category in ['Technical_Rating', 'Mental_Rating', 'Physical_Rating']:
-                for position in df_filtered['Position_Category'].unique():
-                    data = df_filtered[df_filtered['Position_Category'] == position][category]
-                    fig_box.add_trace(go.Box(
-                        y=data,
-                        name=f"{position}",
-                        boxmean='sd'
-                    ))
+                if category in df_filtered.columns:
+                    for position in df_filtered['Position_Category'].unique():
+                        data = df_filtered[df_filtered['Position_Category'] == position][category]
+                        fig_box.add_trace(go.Box(
+                            y=data,
+                            name=f"{position}",
+                            boxmean='sd'
+                        ))
 
             fig_box.update_layout(
                 title='포지션별 능력치 분포 (기술/정신/신체)',
@@ -1023,8 +1032,10 @@ def show_page():
                 st.metric("⭐ 유망주 점수", f"{player_data['Talent_Score_Normalized']:.1f}")
 
             with col4:
-                st.metric("📏 키", f"{int(player_data['Height'])} cm" if pd.notna(player_data['Height']) else "N/A")
-                st.metric("⚖️ 몸무게", f"{int(player_data['Weight'])} kg" if pd.notna(player_data['Weight']) else "N/A")
+                height_val = player_data.get('Height', None)
+                weight_val = player_data.get('Weight', None)
+                st.metric("📏 키", f"{int(height_val)} cm" if pd.notna(height_val) else "N/A")
+                st.metric("⚖️ 몸무게", f"{int(weight_val)} kg" if pd.notna(weight_val) else "N/A")
 
             st.markdown("---")
 
@@ -1130,6 +1141,8 @@ def show_page():
             else:  # Forward
                 key_attrs = ['Finishing', 'Dribbling', 'Pace', 'Acceleration', 'Composure', 'OffTheBall']
 
+            # 존재하는 컬럼만 사용
+            key_attrs = [a for a in key_attrs if a in df_filtered.columns]
             values_detail = [player_data[attr] for attr in key_attrs]
 
             fig_radar_detail = go.Figure()
