@@ -23,7 +23,7 @@ def show_page():
         df, processor = load_data()
 
     # 타이틀
-    st.title("⚽ 축구 유망주 탐색 대시보드")
+    st.title("⚽ 선수 탐색 대시보드")
     st.markdown("---")
 
     # 사이드바 - 필터
@@ -45,7 +45,7 @@ def show_page():
         min_value=int(df['Age'].min()),
         max_value=int(df['Age'].max()),
         value=(18, 25),
-        help="유망주를 찾기 위한 나이 범위를 선택하세요"
+        help="선수를 찾기 위한 나이 범위를 선택하세요"
     )
 
     st.sidebar.markdown("---")
@@ -1206,7 +1206,7 @@ def show_page():
     st.markdown(
         """
         <div style='text-align: center; color: gray;'>
-            ⚽ 축구 유망주 탐색 대시보드<br>
+            ⚽ 선수 탐색 대시보드<br>
             데이터: Football Manager 선수 데이터베이스
         </div>
         """,
