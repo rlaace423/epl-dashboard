@@ -541,15 +541,17 @@ def show_page():
         "[드리블전진거리]<br>패스 없이 드리블로 전방에 얼마나 많은 거리를 가져갔는지 나타내는 지표<br><br>공격수 – 드리블<br>미드필더 – 스태미나, 기술"
     ]
 
+    y_pos = len(teams) + 2
     fig.add_trace(go.Scatter(
         x=metrics,
-        y=[0] * len(metrics),
+        y=[y_pos] * len(metrics),
         mode="text",
         text=metrics,
         textfont=dict(size=13, color="white"),
         hovertext=metric_desc,
         hoverinfo="text",
         showlegend=False,
+        line=dict(width=0, color='rgba(0,0,0,0)'),
         hoverlabel=dict(
             bgcolor="#1E2738",
             bordercolor="#FFB300",
@@ -559,15 +561,22 @@ def show_page():
     ))
 
     fig.update_layout(
+        title=f'EPL {filter_option} 퍼포먼스 비교 (2024-2025 시즌)',
         height=map_height,
-        margin=dict(l=10, r=10, t=60, b=90),
+        margin=dict(l=10, r=10, t=60, b=150),
         xaxis=dict(
             showticklabels=False,
             showgrid=False,
             zeroline=False,
             fixedrange=True
         ),
-        yaxis=dict(autorange="reversed"),
+        yaxis=dict(
+            autorange="reversed",
+            showticklabels=True,
+            tickvals=list(range(len(teams))),  # 0부터 9까지의 틱만 표시
+            ticktext=teams,
+            range=[len(teams) - 0.5, y_pos + 0.5]
+        ),
     )
 
     st.plotly_chart(fig, use_container_width=True)
