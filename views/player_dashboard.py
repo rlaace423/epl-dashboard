@@ -326,8 +326,9 @@ def show_page():
                         df_score['Filter_Score'] = df_score['Overall_Rating']
 
                     # 나이 가중치 적용
-                    age_weight = np.where(df_score['Age'] <= 21, 1.2,
-                                          np.where(df_score['Age'] <= 24, 1.0, 0.8))
+                    # age_weight = np.where(df_score['Age'] <= 21, 1.2,
+                    #                       np.where(df_score['Age'] <= 24, 1.0, 0.8))
+                    age_weight = 1.0
                     df_score['Filter_Score'] = df_score['Filter_Score'] * age_weight
 
                     # 0-100 정규화
