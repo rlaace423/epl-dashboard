@@ -6,7 +6,6 @@ import numpy as np
 from data_processor import FootballDataProcessor
 from streamlit_plotly_events import plotly_events
 
-
 def show_page():
     # 캐싱을 통한 데이터 로드 최적화
     @st.cache_data
@@ -263,11 +262,10 @@ def show_page():
     st.markdown("---")
 
     # 탭 구성
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "🎯 선수 발굴 (Scatter)",
         "📊 선수 비교 (Parallel)",
         "🏆 상위 유망주",
-        "📈 포지션별 분석",
         "👤 선수 프로필"
     ])
 
@@ -990,81 +988,8 @@ def show_page():
                     mime='text/csv',
                 )
 
-    # 탭 4: 포지션별 분석
+    # 탭 4: 선수 프로필 (상세 분석)
     with tab4:
-        st.header("📈 포지션별 분석")
-
-        if len(df_filtered) > 0:
-            # 포지션별 통계
-            position_stats_df = df_filtered.groupby('Position_Category').agg({
-                'Talent_Score_Normalized': ['mean', 'max', 'count'],
-                'Overall_Rating': 'mean',
-                'Age': 'mean'
-            }).round(2)
-
-            position_stats_df.columns = ['평균 유망주 점수', '최고 유망주 점수', '선수 수', '평균 능력치', '평균 나이']
-            position_stats_df = position_stats_df.reset_index()
-            position_stats_df.columns = ['포지션', '평균 유망주 점수', '최고 유망주 점수', '선수 수', '평균 능력치', '평균 나이']
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # 포지션별 평균 유망주 점수
-                fig_pos_avg = px.bar(
-                    position_stats_df,
-                    x='포지션',
-                    y='평균 유망주 점수',
-                    color='평균 유망주 점수',
-                    title='포지션별 평균 유망주 점수',
-                    color_continuous_scale='Blues'
-                )
-                fig_pos_avg.update_layout(height=400)
-                st.plotly_chart(fig_pos_avg, use_container_width=True)
-
-            with col2:
-                # 포지션별 선수 수
-                fig_pos_count = px.pie(
-                    position_stats_df,
-                    values='선수 수',
-                    names='포지션',
-                    title='포지션별 선수 분포',
-                    hole=0.4
-                )
-                fig_pos_count.update_layout(height=400)
-                st.plotly_chart(fig_pos_count, use_container_width=True)
-
-            # 포지션별 통계 테이블
-            st.subheader("포지션별 상세 통계")
-            st.dataframe(position_stats_df, use_container_width=True)
-
-            # 포지션별 능력치 비교 (박스 플롯)
-            st.subheader("포지션별 능력치 분포 비교")
-
-            fig_box = go.Figure()
-
-            for category in ['Technical_Rating', 'Mental_Rating', 'Physical_Rating']:
-                if category in df_filtered.columns:
-                    for position in df_filtered['Position_Category'].unique():
-                        data = df_filtered[df_filtered['Position_Category'] == position][category]
-                        fig_box.add_trace(go.Box(
-                            y=data,
-                            name=f"{position}",
-                            boxmean='sd'
-                        ))
-
-            fig_box.update_layout(
-                title='포지션별 능력치 분포 (기술/정신/신체)',
-                yaxis_title='능력치',
-                height=500,
-                showlegend=True
-            )
-
-            st.plotly_chart(fig_box, use_container_width=True)
-        else:
-            st.warning("필터 조건에 맞는 선수가 없습니다.")
-
-    # 탭 5: 선수 프로필 (상세 분석)
-    with tab5:
         st.header("👤 선수 프로필 - 상세 비교 분석")
 
         # 선택된 선수가 없으면 안내 메시지
