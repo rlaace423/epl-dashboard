@@ -216,6 +216,10 @@ class FootballDataProcessor:
             'AM (LC)': 'AttackingMidCentral',
             'AM (RC)': 'AttackingMidCentral',
             'AM (RL)': 'AttackingMidCentral',
+            'AM (RLC)': 'AttackingMidCentral',
+            'M (RLC)': 'MidfielderCentral',
+            'D (RLC)': 'DefenderCentral',
+            'WB (RL)': 'WingBackRight',
             'ST': 'Striker',
             'ST (C)': 'Striker',
         }
