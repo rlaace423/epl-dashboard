@@ -262,10 +262,10 @@ def show_page():
     st.markdown("---")
 
     # 탭 구성
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab4 = st.tabs([
         "🎯 선수 발굴 (Scatter)",
-        "📊 선수 비교 (Parallel)",
-        "🏆 상위 유망주",
+        # "📊 선수 비교 (Parallel)",
+        # "🏆 상위 유망주",
         "👤 선수 프로필"
     ])
 
@@ -658,335 +658,335 @@ def show_page():
                         """)
 
     # 탭 2: 선수 비교 (Parallel Coordinates)
-    with tab2:
-        st.header("📊 선수 비교 - 평행 좌표계")
-
-        # 선택된 선수가 없으면 안내 메시지
-        if len(st.session_state.clicked_players) == 0:
-            st.warning("⚠️ 선수 발굴 탭에서 선수를 먼저 선택해주세요.")
-            st.info("👈 **선수 발굴** 탭에서 비교할 선수를 클릭하면 여기서 비교할 수 있습니다.")
-        else:
-            # 선택된 선수들만 필터링
-            top_compare = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)]
-            
-            if len(top_compare) == 0:
-                st.warning("⚠️ 선택된 선수가 현재 필터 조건에 맞지 않습니다.")
-            else:
-                st.info(
-                    f"💡 **선택된 {len(top_compare)}명의 선수**를 평행 좌표계로 비교합니다. "
-                    "각 축에서 드래그하여 범위를 지정하면 해당 조건에 맞는 선수만 필터링됩니다."
-                )
-
-                # 포지션별 핵심 스텟 선택
-                if selected_position == 'Goalkeeper':
-                    compare_attrs = ['Age', 'Reflexes', 'Handling', 'OneOnOnes', 'CommandOfArea', 'Kicking', 'Agility',
-                                     'Talent_Score_Normalized']
-                elif selected_position == 'Defender':
-                    compare_attrs = ['Age', 'Marking', 'Tackling', 'Heading', 'Positioning', 'Pace', 'Strength',
-                                     'Anticipation', 'Talent_Score_Normalized']
-                elif selected_position == 'Midfielder':
-                    compare_attrs = ['Age', 'Passing', 'Vision', 'Technique', 'Stamina', 'Workrate', 'Dribbling',
-                                     'FirstTouch', 'Talent_Score_Normalized']
-                elif selected_position == 'Forward':
-                    compare_attrs = ['Age', 'Finishing', 'Dribbling', 'Pace', 'Acceleration', 'Composure', 'OffTheBall',
-                                     'Technique', 'Talent_Score_Normalized']
-                else:
-                    compare_attrs = ['Age', 'Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating',
-                                     'Pace', 'Passing', 'Finishing', 'Talent_Score_Normalized']
-
-                # 존재하는 컬럼만 사용
-                compare_attrs = [a for a in compare_attrs if a in top_compare.columns]
-
-                # 데이터 준비
-                compare_data = top_compare[compare_attrs + ['Name', 'Position_Category']].copy()
-
-                # 선수별 색상 정의
-                player_colors = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A']
-                
-                # 라인 차트 기반 평행좌표계 (hover 지원)
-                fig_parallel = go.Figure()
-                
-                # 각 축의 범위 계산
-                attr_ranges = {}
-                for attr in compare_attrs:
-                    attr_ranges[attr] = {
-                        'min': top_compare[attr].min(),
-                        'max': top_compare[attr].max()
-                    }
-                
-                # 정규화 함수 (0-1 범위로)
-                def normalize_value(value, attr):
-                    min_val = attr_ranges[attr]['min']
-                    max_val = attr_ranges[attr]['max']
-                    if max_val == min_val:
-                        return 0.5
-                    return (value - min_val) / (max_val - min_val)
-                
-                # 각 선수별 라인 추가
-                for idx, (_, player_row) in enumerate(top_compare.iterrows()):
-                    player_name = player_row['Name']
-                    
-                    # 정규화된 y값
-                    y_values = [normalize_value(player_row[attr], attr) for attr in compare_attrs]
-                    
-                    # 실제 값 (hover용)
-                    actual_values = [player_row[attr] for attr in compare_attrs]
-                    
-                    fig_parallel.add_trace(go.Scatter(
-                        x=compare_attrs,
-                        y=y_values,
-                        mode='lines+markers',
-                        name=player_name,
-                        line=dict(color=player_colors[idx % len(player_colors)], width=3),
-                        marker=dict(size=10, color=player_colors[idx % len(player_colors)]),
-                        customdata=[[actual_values[i]] for i in range(len(compare_attrs))],
-                        hovertemplate='<b>%{customdata[0]:.1f}</b><extra></extra>'
-                    ))
-                
-                # x축 레이블 설정
-                fig_parallel.update_layout(
-                    title=f'선택된 {len(top_compare)}명 선수 비교 - {selected_position if selected_position != "All" else "전체 포지션"}',
-                    height=500,
-                    margin=dict(l=50, r=50, t=80, b=120),
-                    xaxis=dict(
-                        tickangle=45,
-                        tickfont=dict(size=11)
-                    ),
-                    yaxis=dict(
-                        title='정규화된 값 (0-1)',
-                        range=[-0.05, 1.05],
-                        showgrid=True,
-                        gridcolor='lightgray'
-                    ),
-                    legend=dict(
-                        orientation="h",
-                        yanchor="top",
-                        y=-0.25,
-                        xanchor="center",
-                        x=0.5
-                    ),
-                    hovermode='x unified',
-                    hoverlabel=dict(
-                        bgcolor="white",
-                        font_size=12,
-                        namelength=-1
-                    )
-                )
-                
-                # 각 축에 실제 범위 표시 (상단/하단에 주석)
-                for i, attr in enumerate(compare_attrs):
-                    # 최대값 표시 (상단)
-                    fig_parallel.add_annotation(
-                        x=attr, y=1.08,
-                        text=f"{attr_ranges[attr]['max']:.1f}",
-                        showarrow=False,
-                        font=dict(size=9, color='gray')
-                    )
-                    # 최소값 표시 (하단)
-                    fig_parallel.add_annotation(
-                        x=attr, y=-0.08,
-                        text=f"{attr_ranges[attr]['min']:.1f}",
-                        showarrow=False,
-                        font=dict(size=9, color='gray')
-                    )
-
-                st.plotly_chart(fig_parallel, use_container_width=True)
-                
-                st.caption("💡 **Tip**: 마우스를 라인 위에 올리면 선수 이름과 해당 능력치 값을 확인할 수 있습니다.")
-
-                # 비교 대상 선수 리스트
-                st.subheader("📋 비교 대상 선수 목록")
-
-                # 중복 컬럼 제거 (Age가 compare_attrs에 이미 포함됨)
-                base_cols = ['Name', 'Position_Category']
-                display_cols = base_cols + [col for col in compare_attrs if col not in base_cols]
-                display_df = top_compare[display_cols].copy()
-                display_df = display_df.round(2)
-
-                st.dataframe(display_df, use_container_width=True, height=300)
-
-                # 선수별 상세 비교
-                st.markdown("---")
-                st.subheader("🔍 선수별 상세 비교")
-
-                # 2-3명 선택하여 레이더 차트로 직접 비교
-                selected_players_tab2 = st.multiselect(
-                    "비교할 선수 선택 (최대 3명)",
-                    options=top_compare['Name'].tolist(),
-                    default=top_compare['Name'].tolist()[:min(3, len(top_compare))],
-                    max_selections=3,
-                    help="선택한 선수들의 능력치를 레이더 차트로 비교합니다"
-                )
-
-                if len(selected_players_tab2) > 0:
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        # 5개 대분류 레이더 차트
-                        st.markdown("#### 능력치 프로필 비교 (5개 대분류)")
-
-                        fig_compare_radar = go.Figure()
-
-                        categories = ['공격력', '수비력', '기술', '멘탈', '신체']
-                        colors = ['#636EFA', '#EF553B', '#00CC96']
-
-                        for idx, player_name in enumerate(selected_players_tab2):
-                            player_data = top_compare[top_compare['Name'] == player_name].iloc[0]
-
-                            attacking_attrs = ['Finishing', 'LongShots', 'Heading', 'OffTheBall']
-                            defending_attrs = ['Marking', 'Tackling', 'Positioning', 'Anticipation']
-                            technical_attrs = ['Dribbling', 'Passing', 'FirstTouch', 'Technique', 'Crossing']
-                            mental_attrs = ['Composure', 'Vision', 'Decisions', 'Determination', 'Workrate']
-                            physical_attrs = ['Pace', 'Acceleration', 'Stamina', 'Strength', 'Agility']
-
-                            values = [
-                                player_data[[a for a in attacking_attrs if a in df_filtered.columns]].mean(),
-                                player_data[[a for a in defending_attrs if a in df_filtered.columns]].mean(),
-                                player_data[[a for a in technical_attrs if a in df_filtered.columns]].mean(),
-                                player_data[[a for a in mental_attrs if a in df_filtered.columns]].mean(),
-                                player_data[[a for a in physical_attrs if a in df_filtered.columns]].mean()
-                            ]
-
-                            fig_compare_radar.add_trace(go.Scatterpolar(
-                                r=values,
-                                theta=categories,
-                                fill='toself',
-                                name=player_name,
-                                line_color=colors[idx % 3],
-                                fillcolor=f'rgba{tuple(list(int(colors[idx % 3][i:i + 2], 16) for i in (1, 3, 5)) + [0.2])}'
-                            ))
-
-                        fig_compare_radar.update_layout(
-                            polar=dict(
-                                radialaxis=dict(
-                                    visible=True,
-                                    range=[0, 20]
-                                )
-                            ),
-                            height=500,
-                            showlegend=True
-                        )
-
-                        st.plotly_chart(fig_compare_radar, use_container_width=True)
-
-                    with col2:
-                        # 포지션별 핵심 스텟 비교 바 차트
-                        st.markdown("#### 핵심 스텟 비교")
-
-                        # 포지션별 핵심 스텟 3-4개 선택
-                        if selected_position == 'Goalkeeper':
-                            key_stats = ['Reflexes', 'Handling', 'OneOnOnes', 'Kicking']
-                        elif selected_position == 'Defender':
-                            key_stats = ['Marking', 'Tackling', 'Pace', 'Strength']
-                        elif selected_position == 'Midfielder':
-                            key_stats = ['Passing', 'Vision', 'Stamina', 'Technique']
-                        elif selected_position == 'Forward':
-                            key_stats = ['Finishing', 'Pace', 'Dribbling', 'Composure']
-                        else:
-                            key_stats = ['Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating']
-
-                        # 존재하는 컬럼만 사용
-                        key_stats = [s for s in key_stats if s in top_compare.columns]
-
-                        fig_bar_compare = go.Figure()
-
-                        for player_name in selected_players_tab2:
-                            player_data = top_compare[top_compare['Name'] == player_name].iloc[0]
-                            values = [player_data[stat] for stat in key_stats]
-
-                            fig_bar_compare.add_trace(go.Bar(
-                                name=player_name,
-                                x=key_stats,
-                                y=values,
-                                text=[f'{v:.1f}' for v in values],
-                                textposition='auto'
-                            ))
-
-                        fig_bar_compare.update_layout(
-                            barmode='group',
-                            height=500,
-                            yaxis=dict(range=[0, 20]),
-                            xaxis_title="능력치",
-                            yaxis_title="수치",
-                            showlegend=True
-                        )
-
-                        st.plotly_chart(fig_bar_compare, use_container_width=True)
+    # with tab2:
+    #     st.header("📊 선수 비교 - 평행 좌표계")
+    #
+    #     # 선택된 선수가 없으면 안내 메시지
+    #     if len(st.session_state.clicked_players) == 0:
+    #         st.warning("⚠️ 선수 발굴 탭에서 선수를 먼저 선택해주세요.")
+    #         st.info("👈 **선수 발굴** 탭에서 비교할 선수를 클릭하면 여기서 비교할 수 있습니다.")
+    #     else:
+    #         # 선택된 선수들만 필터링
+    #         top_compare = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)]
+    #
+    #         if len(top_compare) == 0:
+    #             st.warning("⚠️ 선택된 선수가 현재 필터 조건에 맞지 않습니다.")
+    #         else:
+    #             st.info(
+    #                 f"💡 **선택된 {len(top_compare)}명의 선수**를 평행 좌표계로 비교합니다. "
+    #                 "각 축에서 드래그하여 범위를 지정하면 해당 조건에 맞는 선수만 필터링됩니다."
+    #             )
+    #
+    #             # 포지션별 핵심 스텟 선택
+    #             if selected_position == 'Goalkeeper':
+    #                 compare_attrs = ['Reflexes', 'Handling', 'OneOnOnes', 'CommandOfArea', 'Kicking', 'Agility',
+    #                                  'Talent_Score_Normalized']
+    #             elif selected_position == 'Defender':
+    #                 compare_attrs = ['Marking', 'Tackling', 'Heading', 'Positioning', 'Pace', 'Strength',
+    #                                  'Anticipation', 'Talent_Score_Normalized']
+    #             elif selected_position == 'Midfielder':
+    #                 compare_attrs = ['Passing', 'Vision', 'Technique', 'Stamina', 'Workrate', 'Dribbling',
+    #                                  'FirstTouch', 'Talent_Score_Normalized']
+    #             elif selected_position == 'Forward':
+    #                 compare_attrs = ['Finishing', 'Dribbling', 'Pace', 'Acceleration', 'Composure', 'OffTheBall',
+    #                                  'Technique', 'Talent_Score_Normalized']
+    #             else:
+    #                 compare_attrs = ['Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating',
+    #                                  'Pace', 'Passing', 'Finishing', 'Talent_Score_Normalized']
+    #
+    #             # 존재하는 컬럼만 사용
+    #             compare_attrs = [a for a in compare_attrs if a in top_compare.columns]
+    #
+    #             # 데이터 준비
+    #             compare_data = top_compare[compare_attrs + ['Name', 'Position_Category']].copy()
+    #
+    #             # 선수별 색상 정의
+    #             player_colors = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A']
+    #
+    #             # 라인 차트 기반 평행좌표계 (hover 지원)
+    #             fig_parallel = go.Figure()
+    #
+    #             # 각 축의 범위 계산
+    #             attr_ranges = {}
+    #             for attr in compare_attrs:
+    #                 attr_ranges[attr] = {
+    #                     'min': top_compare[attr].min(),
+    #                     'max': top_compare[attr].max()
+    #                 }
+    #
+    #             # 정규화 함수 (0-1 범위로)
+    #             def normalize_value(value, attr):
+    #                 min_val = attr_ranges[attr]['min']
+    #                 max_val = attr_ranges[attr]['max']
+    #                 if max_val == min_val:
+    #                     return 0.5
+    #                 return (value - min_val) / (max_val - min_val)
+    #
+    #             # 각 선수별 라인 추가
+    #             for idx, (_, player_row) in enumerate(top_compare.iterrows()):
+    #                 player_name = player_row['Name']
+    #
+    #                 # 정규화된 y값
+    #                 y_values = [normalize_value(player_row[attr], attr) for attr in compare_attrs]
+    #
+    #                 # 실제 값 (hover용)
+    #                 actual_values = [player_row[attr] for attr in compare_attrs]
+    #
+    #                 fig_parallel.add_trace(go.Scatter(
+    #                     x=compare_attrs,
+    #                     y=y_values,
+    #                     mode='lines+markers',
+    #                     name=player_name,
+    #                     line=dict(color=player_colors[idx % len(player_colors)], width=3),
+    #                     marker=dict(size=10, color=player_colors[idx % len(player_colors)]),
+    #                     customdata=[[actual_values[i]] for i in range(len(compare_attrs))],
+    #                     hovertemplate='<b>%{customdata[0]:.1f}</b><extra></extra>'
+    #                 ))
+    #
+    #             # x축 레이블 설정
+    #             fig_parallel.update_layout(
+    #                 title=f'선택된 {len(top_compare)}명 선수 비교 - {selected_position if selected_position != "All" else "전체 포지션"}',
+    #                 height=500,
+    #                 margin=dict(l=50, r=50, t=80, b=120),
+    #                 xaxis=dict(
+    #                     tickangle=45,
+    #                     tickfont=dict(size=11)
+    #                 ),
+    #                 yaxis=dict(
+    #                     title='정규화된 값 (0-1)',
+    #                     range=[-0.05, 1.05],
+    #                     showgrid=True,
+    #                     gridcolor='lightgray'
+    #                 ),
+    #                 legend=dict(
+    #                     orientation="h",
+    #                     yanchor="top",
+    #                     y=-0.25,
+    #                     xanchor="center",
+    #                     x=0.5
+    #                 ),
+    #                 hovermode='x unified',
+    #                 hoverlabel=dict(
+    #                     bgcolor='rgba(240,240,240,0.5)',
+    #                     font_size=12,
+    #                     namelength=-1
+    #                 )
+    #             )
+    #
+    #             # 각 축에 실제 범위 표시 (상단/하단에 주석)
+    #             for i, attr in enumerate(compare_attrs):
+    #                 # 최대값 표시 (상단)
+    #                 fig_parallel.add_annotation(
+    #                     x=attr, y=1.08,
+    #                     text=f"{attr_ranges[attr]['max']:.1f}",
+    #                     showarrow=False,
+    #                     font=dict(size=9, color='gray')
+    #                 )
+    #                 # 최소값 표시 (하단)
+    #                 fig_parallel.add_annotation(
+    #                     x=attr, y=-0.08,
+    #                     text=f"{attr_ranges[attr]['min']:.1f}",
+    #                     showarrow=False,
+    #                     font=dict(size=9, color='gray')
+    #                 )
+    #
+    #             st.plotly_chart(fig_parallel, use_container_width=True)
+    #
+    #             st.caption("💡 **Tip**: 마우스를 라인 위에 올리면 선수 이름과 해당 능력치 값을 확인할 수 있습니다.")
+    #
+    #             # 비교 대상 선수 리스트
+    #             st.subheader("📋 비교 대상 선수 목록")
+    #
+    #             # 중복 컬럼 제거 (Age가 compare_attrs에 이미 포함됨)
+    #             base_cols = ['Name', 'Position_Category']
+    #             display_cols = base_cols + [col for col in compare_attrs if col not in base_cols]
+    #             display_df = top_compare[display_cols].copy()
+    #             display_df = display_df.round(2)
+    #
+    #             st.dataframe(display_df, use_container_width=True, height=300)
+    #
+    #             # 선수별 상세 비교
+    #             st.markdown("---")
+    #             st.subheader("🔍 선수별 상세 비교")
+    #
+    #             # 2-3명 선택하여 레이더 차트로 직접 비교
+    #             selected_players_tab2 = st.multiselect(
+    #                 "비교할 선수 선택 (최대 3명)",
+    #                 options=top_compare['Name'].tolist(),
+    #                 default=top_compare['Name'].tolist()[:min(3, len(top_compare))],
+    #                 max_selections=3,
+    #                 help="선택한 선수들의 능력치를 레이더 차트로 비교합니다"
+    #             )
+    #
+    #             if len(selected_players_tab2) > 0:
+    #                 col1, col2 = st.columns(2)
+    #
+    #                 with col1:
+    #                     # 5개 대분류 레이더 차트
+    #                     st.markdown("#### 능력치 프로필 비교 (5개 대분류)")
+    #
+    #                     fig_compare_radar = go.Figure()
+    #
+    #                     categories = ['공격력', '수비력', '기술', '멘탈', '신체']
+    #                     colors = ['#636EFA', '#EF553B', '#00CC96']
+    #
+    #                     for idx, player_name in enumerate(selected_players_tab2):
+    #                         player_data = top_compare[top_compare['Name'] == player_name].iloc[0]
+    #
+    #                         attacking_attrs = ['Finishing', 'LongShots', 'Heading', 'OffTheBall']
+    #                         defending_attrs = ['Marking', 'Tackling', 'Positioning', 'Anticipation']
+    #                         technical_attrs = ['Dribbling', 'Passing', 'FirstTouch', 'Technique', 'Crossing']
+    #                         mental_attrs = ['Composure', 'Vision', 'Decisions', 'Determination', 'Workrate']
+    #                         physical_attrs = ['Pace', 'Acceleration', 'Stamina', 'Strength', 'Agility']
+    #
+    #                         values = [
+    #                             player_data[[a for a in attacking_attrs if a in df_filtered.columns]].mean(),
+    #                             player_data[[a for a in defending_attrs if a in df_filtered.columns]].mean(),
+    #                             player_data[[a for a in technical_attrs if a in df_filtered.columns]].mean(),
+    #                             player_data[[a for a in mental_attrs if a in df_filtered.columns]].mean(),
+    #                             player_data[[a for a in physical_attrs if a in df_filtered.columns]].mean()
+    #                         ]
+    #
+    #                         fig_compare_radar.add_trace(go.Scatterpolar(
+    #                             r=values,
+    #                             theta=categories,
+    #                             fill='toself',
+    #                             name=player_name,
+    #                             line_color=colors[idx % 3],
+    #                             fillcolor=f'rgba{tuple(list(int(colors[idx % 3][i:i + 2], 16) for i in (1, 3, 5)) + [0.2])}'
+    #                         ))
+    #
+    #                     fig_compare_radar.update_layout(
+    #                         polar=dict(
+    #                             radialaxis=dict(
+    #                                 visible=True,
+    #                                 range=[0, 20]
+    #                             )
+    #                         ),
+    #                         height=500,
+    #                         showlegend=True
+    #                     )
+    #
+    #                     st.plotly_chart(fig_compare_radar, use_container_width=True)
+    #
+    #                 with col2:
+    #                     # 포지션별 핵심 스텟 비교 바 차트
+    #                     st.markdown("#### 핵심 스텟 비교")
+    #
+    #                     # 포지션별 핵심 스텟 3-4개 선택
+    #                     if selected_position == 'Goalkeeper':
+    #                         key_stats = ['Reflexes', 'Handling', 'OneOnOnes', 'Kicking']
+    #                     elif selected_position == 'Defender':
+    #                         key_stats = ['Marking', 'Tackling', 'Pace', 'Strength']
+    #                     elif selected_position == 'Midfielder':
+    #                         key_stats = ['Passing', 'Vision', 'Stamina', 'Technique']
+    #                     elif selected_position == 'Forward':
+    #                         key_stats = ['Finishing', 'Pace', 'Dribbling', 'Composure']
+    #                     else:
+    #                         key_stats = ['Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating']
+    #
+    #                     # 존재하는 컬럼만 사용
+    #                     key_stats = [s for s in key_stats if s in top_compare.columns]
+    #
+    #                     fig_bar_compare = go.Figure()
+    #
+    #                     for player_name in selected_players_tab2:
+    #                         player_data = top_compare[top_compare['Name'] == player_name].iloc[0]
+    #                         values = [player_data[stat] for stat in key_stats]
+    #
+    #                         fig_bar_compare.add_trace(go.Bar(
+    #                             name=player_name,
+    #                             x=key_stats,
+    #                             y=values,
+    #                             text=[f'{v:.1f}' for v in values],
+    #                             textposition='auto'
+    #                         ))
+    #
+    #                     fig_bar_compare.update_layout(
+    #                         barmode='group',
+    #                         height=500,
+    #                         yaxis=dict(range=[0, 20]),
+    #                         xaxis_title="능력치",
+    #                         yaxis_title="수치",
+    #                         showlegend=True
+    #                     )
+    #
+    #                     st.plotly_chart(fig_bar_compare, use_container_width=True)
 
     # 탭 3: 상위 유망주
-    with tab3:
-        st.header("🏆 선택된 유망주 랭킹")
-
-        # 선택된 선수가 없으면 안내 메시지
-        if len(st.session_state.clicked_players) == 0:
-            st.warning("⚠️ 선수 발굴 탭에서 선수를 먼저 선택해주세요.")
-            st.info("👈 **선수 발굴** 탭에서 유망주를 클릭하면 여기서 상세 정보를 볼 수 있습니다.")
-        else:
-            # 선택된 선수들만 필터링
-            selected_talents = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)]
-            
-            if len(selected_talents) == 0:
-                st.warning("⚠️ 선택된 선수가 현재 필터 조건에 맞지 않습니다.")
-            else:
-                st.subheader(f"선택된 {len(selected_talents)}명의 유망주")
-
-                # 선택된 선수들 바 차트
-                fig_bar = px.bar(
-                    selected_talents.sort_values('Talent_Score_Normalized', ascending=True),
-                    x='Talent_Score_Normalized',
-                    y='Name',
-                    orientation='h',
-                    color='Age',
-                    title='선택된 유망주 순위',
-                    labels={
-                        'Talent_Score_Normalized': '유망주 점수',
-                        'Name': '선수명',
-                        'Age': '나이'
-                    },
-                    color_continuous_scale='RdYlGn_r',
-                    hover_data=['Position_Category', 'Overall_Rating']
-                )
-
-                fig_bar.update_layout(
-                    height=max(300, len(selected_talents) * 50),
-                    yaxis={'categoryorder': 'total ascending'}
-                )
-
-                st.plotly_chart(fig_bar, use_container_width=True)
-
-                # 상위 유망주 테이블
-                st.subheader("선택된 유망주 상세 리스트")
-
-                display_cols = [
-                    'Name', 'Age', 'Position_Category', 'Overall_Rating',
-                    'Technical_Rating', 'Mental_Rating', 'Physical_Rating',
-                    'Talent_Score_Normalized'
-                ]
-
-                display_df = selected_talents[display_cols].copy()
-                display_df.columns = [
-                    '이름', '나이', '포지션', '종합능력치',
-                    '기술', '정신', '신체', '유망주점수'
-                ]
-
-                # 숫자 포맷팅
-                for col in ['종합능력치', '기술', '정신', '신체', '유망주점수']:
-                    display_df[col] = display_df[col].round(2)
-
-                st.dataframe(
-                    display_df.sort_values('유망주점수', ascending=False),
-                    use_container_width=True,
-                    height=400
-                )
-
-                # CSV 다운로드
-                csv = selected_talents.to_csv(index=False).encode('utf-8-sig')
-                st.download_button(
-                    label="📥 선택된 유망주 데이터 다운로드 (CSV)",
-                    data=csv,
-                    file_name='selected_talents.csv',
-                    mime='text/csv',
-                )
+    # with tab3:
+    #     st.header("🏆 선택된 유망주 랭킹")
+    #
+    #     # 선택된 선수가 없으면 안내 메시지
+    #     if len(st.session_state.clicked_players) == 0:
+    #         st.warning("⚠️ 선수 발굴 탭에서 선수를 먼저 선택해주세요.")
+    #         st.info("👈 **선수 발굴** 탭에서 유망주를 클릭하면 여기서 상세 정보를 볼 수 있습니다.")
+    #     else:
+    #         # 선택된 선수들만 필터링
+    #         selected_talents = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)]
+    #
+    #         if len(selected_talents) == 0:
+    #             st.warning("⚠️ 선택된 선수가 현재 필터 조건에 맞지 않습니다.")
+    #         else:
+    #             st.subheader(f"선택된 {len(selected_talents)}명의 유망주")
+    #
+    #             # 선택된 선수들 바 차트
+    #             fig_bar = px.bar(
+    #                 selected_talents.sort_values('Talent_Score_Normalized', ascending=True),
+    #                 x='Talent_Score_Normalized',
+    #                 y='Name',
+    #                 orientation='h',
+    #                 color='Age',
+    #                 title='선택된 유망주 순위',
+    #                 labels={
+    #                     'Talent_Score_Normalized': '유망주 점수',
+    #                     'Name': '선수명',
+    #                     'Age': '나이'
+    #                 },
+    #                 color_continuous_scale='RdYlGn_r',
+    #                 hover_data=['Position_Category', 'Overall_Rating']
+    #             )
+    #
+    #             fig_bar.update_layout(
+    #                 height=max(300, len(selected_talents) * 50),
+    #                 yaxis={'categoryorder': 'total ascending'}
+    #             )
+    #
+    #             st.plotly_chart(fig_bar, use_container_width=True)
+    #
+    #             # 상위 유망주 테이블
+    #             st.subheader("선택된 유망주 상세 리스트")
+    #
+    #             display_cols = [
+    #                 'Name', 'Age', 'Position_Category', 'Overall_Rating',
+    #                 'Technical_Rating', 'Mental_Rating', 'Physical_Rating',
+    #                 'Talent_Score_Normalized'
+    #             ]
+    #
+    #             display_df = selected_talents[display_cols].copy()
+    #             display_df.columns = [
+    #                 '이름', '나이', '포지션', '종합능력치',
+    #                 '기술', '정신', '신체', '유망주점수'
+    #             ]
+    #
+    #             # 숫자 포맷팅
+    #             for col in ['종합능력치', '기술', '정신', '신체', '유망주점수']:
+    #                 display_df[col] = display_df[col].round(2)
+    #
+    #             st.dataframe(
+    #                 display_df.sort_values('유망주점수', ascending=False),
+    #                 use_container_width=True,
+    #                 height=400
+    #             )
+    #
+    #             # CSV 다운로드
+    #             csv = selected_talents.to_csv(index=False).encode('utf-8-sig')
+    #             st.download_button(
+    #                 label="📥 선택된 유망주 데이터 다운로드 (CSV)",
+    #                 data=csv,
+    #                 file_name='selected_talents.csv',
+    #                 mime='text/csv',
+    #             )
 
     # 탭 4: 선수 프로필 (상세 분석)
     with tab4:
