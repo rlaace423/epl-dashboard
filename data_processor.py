@@ -123,7 +123,19 @@ class FootballDataProcessor:
         print("데이터를 로딩 중...")
         self.df = pd.read_csv(self.csv_path)
         print(f"총 {len(self.df)} 명의 선수 데이터를 로드했습니다.")
-        
+
+        # UID 컬럼이 있다면 UID 기준으로 중복 제거
+        if 'UID' in self.df.columns:
+            initial_count = len(self.df)
+            self.df = self.df.drop_duplicates(subset=['UID'], keep='first')
+            dropped_count = initial_count - len(self.df)
+            if dropped_count > 0:
+                print(f"⚠️ 중복된 선수 데이터 {dropped_count}명을 제거했습니다.")
+        else:
+            # UID가 없는 경우 이름+생년월일로 중복 제거 시도
+            self.df = self.df.drop_duplicates(subset=['Name', 'DOB'], keep='first')
+        print(f"총 {len(self.df)} 명의 선수 데이터를 로드했습니다.")
+
         # 새 데이터셋 형식인지 확인 (약어 컬럼이 있는지)
         if 'Acc' in self.df.columns or 'Fin' in self.df.columns:
             self.is_new_format = True
