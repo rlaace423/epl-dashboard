@@ -78,20 +78,20 @@ class FootballDataProcessor:
     
     # 능력치 카테고리별 컬럼 정의
     TECHNICAL_ATTRIBUTES = [
-        'Corners', 'Crossing', 'Dribbling', 'Finishing', 'FirstTouch', 
-        'Freekicks', 'Heading', 'LongShots', 'Marking', 'Passing', 
-        'PenaltyTaking', 'Tackling', 'Technique'
+        'Corners', 'Crossing', 'Dribbling', 'Finishing', 'FirstTouch',
+        'Freekicks', 'Heading', 'LongShots', 'Marking', 'Passing',
+        'PenaltyTaking', 'Tackling', 'Technique', 'Handling', 'Kicking', 'OneOnOnes', 'Reflexes', 'RushingOut', 'Throwing'
     ]
     
     MENTAL_ATTRIBUTES = [
         'Aggression', 'Anticipation', 'Bravery', 'Composure', 'Concentration',
         'Vision', 'Decisions', 'Determination', 'Flair', 'Leadership',
-        'OffTheBall', 'Positioning', 'Teamwork', 'Workrate'
+        'OffTheBall', 'Positioning', 'Teamwork', 'Workrate', 'CommandOfArea', 'Communication', 'Eccentricity'
     ]
     
     PHYSICAL_ATTRIBUTES = [
         'Acceleration', 'Agility', 'Balance', 'Jumping', 'NaturalFitness',
-        'Pace', 'Stamina', 'Strength'
+        'Pace', 'Stamina', 'Strength', 'AerialAbility'
     ]
     
     # 포지션별 중요 능력치
