@@ -513,23 +513,61 @@ def show_page():
     st.subheader("📊 팀별 세부 지표 분석 (Heatmap)")
     st.info("💡 붉은색이 진할수록 해당 지표에서 리그 상위권임을 의미합니다. 푸른색은 약점을 나타냅니다.")
 
-    fig = go.Figure(data=go.Heatmap(
+    fig = go.Figure()
+    fig.add_trace(go.Heatmap(
         z=data_for_heatmap,
         x=metrics,
         y=teams,
-        colorscale='RdBu_r',
+        colorscale="RdBu_r",
         xgap=2,
         ygap=2,
-        hovertemplate="<b>%{y}</b><br>%{x}: %{z:.2f}<extra></extra>"
+        hovertemplate="<b>%{y}</b><br>%{x}: %{z:.2f}<extra></extra>",
+        showscale=True
+    ))
+
+    # Tooltip 추가
+    metric_desc = [
+        "[득점]<br>경기당 득점 수",
+        "[어시스트]<br>경기당 어시스트 수",
+        "[공격포인트]<br>경기당 득점과 어시스트의 합산",
+        "[득점효율]<br>G/SoT: G는 Goal의 약자, SoT는 Shot on Targer의 약자로, PK를 제외한 유효슈팅 대비 득점 효율을 나타내는 지표. 경기당 일정 유효슈팅 수를 채운 선수만 “Goals per shot on target” 팀 효율 순위에 반영됨(경기당 최소 0.111개의 유효슈팅을 기록해야 순위에 포함).<br><br>공격수 포지션 – 침착성, 골결정력 중요",
+        "[슈팅집중도]<br>90분 기준 유효슈팅 수를 의미. 팀 내에 30분 이상 출전한 선수들 기준으로 유효슈팅을 만들어낸 기록을 90분으로 환산한 지표. 단, 패널티킥 제외<br><br>공격수 포지션 – 기술, 오프더볼",
+        "[기회창출력]<br>경기당 팀이 얼마나 자주 공격을 ‘창출’하는지를 정량적으로 보여주는 지표로 슛으로 이어지기까지 공격 흐름을 실제로 움직인 행동 전체를 기록<br><br>미드필더 공격수 포지션 – 시야, 기술, 패스, 판단력, 활동량",
+        "[선방률]<br>상대의 유효슈팅 중 골로 이어지지 않은 비율(골키퍼가 막아낸 비율)로, 페널티킥은 제외되며 수비가 막은 슈팅은 세이브로 계산되지 않음.<br><br>골키퍼 포지션 – 반사신경, 민첩성",
+        "[태클성공률]<br>경기당 최소 0.625회 이상 상대팀 드리블러에 성공한 태클 횟수를 시도한 태클 횟수로 나눈 비율<br><br>수비수 – 태클, 예측력",
+        "[패스성공률]<br>경기당 30분 이상 출전한 선수 기준으로, 인플레이상황에서 각팀별 패스 성공률<br><br>미드필더 – 패스",
+        "[허용기대득점]<br>실점 기대값(상대가 만든 기대 득점)에 대한 설명으로 팀이 상대에게 허용한 슈팅의 ‘기대 실점값’을 계산한 것으로, 수치가 높을수록 수비에서의 압박이 약하다는 의미.<br><br>수비수 – 종합평가",
+        "[인터셉트]<br>상대방 패스를 읽고 가로챈 횟수<br><br>수비수 – 예측력, 포지셔닝<br>미드필더 – 판단력",
+        "[드리블전진거리]<br>패스 없이 드리블로 전방에 얼마나 많은 거리를 가져갔는지 나타내는 지표<br><br>공격수 – 드리블<br>미드필더 – 스태미나, 기술"
+    ]
+
+    fig.add_trace(go.Scatter(
+        x=metrics,
+        y=[0] * len(metrics),
+        mode="text",
+        text=metrics,
+        textfont=dict(size=13, color="white"),
+        hovertext=metric_desc,
+        hoverinfo="text",
+        showlegend=False,
+        hoverlabel=dict(
+            bgcolor="#1E2738",
+            bordercolor="#FFB300",
+            font=dict(size=14, color="white"),
+            align="left"
+        )
     ))
 
     fig.update_layout(
-        title=f'EPL {filter_option} 퍼포먼스 비교 (2024-2025 시즌 최종 데이터)',
-        height=map_height, 
-        xaxis_nticks=len(metrics),
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=10, r=10, t=50, b=10),
-        yaxis=dict(autorange="reversed") # 득점 순 1위가 맨 위에 오도록 역순 정렬
+        height=map_height,
+        margin=dict(l=10, r=10, t=60, b=90),
+        xaxis=dict(
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            fixedrange=True
+        ),
+        yaxis=dict(autorange="reversed"),
     )
 
     st.plotly_chart(fig, use_container_width=True)
