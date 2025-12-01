@@ -289,9 +289,9 @@ class FootballDataProcessor:
         """
         # 나이 가중치: 젊을수록 높은 가중치
         # 18-21세: 1.5배, 22-25세: 1.2배, 26-29세: 1.0배, 30세 이상: 0.5배
-        age_weight = np.where(self.df['Age'] <= 21, 1.5,
-                     np.where(self.df['Age'] <= 25, 1.2,
-                     np.where(self.df['Age'] <= 29, 1.0, 0.5)))
+        age_weight = np.where(self.df['Age'] <= 21, 1.0,
+                     np.where(self.df['Age'] <= 25, 1.0,
+                     np.where(self.df['Age'] <= 29, 1.0, 1.0)))
         
         self.df['Age_Weight'] = age_weight
         self.df['Potential_Score'] = self.df['Overall_Rating'] * age_weight
