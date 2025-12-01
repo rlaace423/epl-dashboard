@@ -484,7 +484,7 @@ def show_page():
     final_cols_map = {
         'Gls': '득점', 'Ast': '어시스트', 'G+A': '공격 포인트', 'G/SoT': '득점 효율',
         'SoT/90': '슈팅 집중도', 'SCA90': '기회 창출력', 'Save%': '선방률',
-        'Tkl%': '태클 성공률', 'Cmp%': '패스 성공률','xGA': '허용 기대 득점', 'Int': '인터셉트',        'PrgDist': '전진 패스 거리'
+        'Tkl%': '태클 성공률', 'Cmp%': '패스 성공률','xGA': '허용 기대 득점', 'Int': '인터셉트',        'PrgDist': '드리블 전진 거리'
     }
 
     numeric_cols = list(final_cols_map.keys())
