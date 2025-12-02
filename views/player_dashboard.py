@@ -1195,7 +1195,7 @@ def show_page():
                         labels=dict(x="선수", y="능력치", color="점수"),
                         x=tech_compare_df.columns.tolist(),
                         y=tech_compare_df.index.tolist(),
-                        color_continuous_scale='RdYlGn',
+                        color_continuous_scale='RdBu',
                         title="기술 능력치 히트맵"
                     )
                     fig_tech_heat.update_layout(height=500)
