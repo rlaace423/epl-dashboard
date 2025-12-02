@@ -518,7 +518,7 @@ def show_page():
         z=data_for_heatmap,
         x=metrics,
         y=teams,
-        colorscale="RdBu_r",
+        colorscale="RdBu",
         xgap=2,
         ygap=2,
         hovertemplate="<b>%{y}</b><br>%{x}: %{z:.2f}<extra></extra>",
