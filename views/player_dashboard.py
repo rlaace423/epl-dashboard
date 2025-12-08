@@ -143,14 +143,14 @@ def show_page():
 
     st.sidebar.markdown("---")
 
-    # 표시할 상위 유망주 수
+    # 표시할 상위 선수 수
     top_n_display = st.sidebar.slider(
-        "🏆 상위 유망주 표시 수",
+        "🏆 상위 선수 표시 수",
         min_value=1,
         max_value=10,
         value=10,
         step=1,
-        help="차트에 표시할 상위 유망주 수 (1~10명)"
+        help="차트에 표시할 상위 선수 수 (1~10명)"
     )
 
     st.sidebar.markdown("---")
@@ -197,7 +197,7 @@ def show_page():
             if stat_name in df_filtered.columns:
                 df_filtered = df_filtered[df_filtered[stat_name] >= min_value]
 
-    # 상위 유망주 추출
+    # 상위 선수 추출
     top_talents = df_filtered.nlargest(top_n_display, 'Talent_Score_Normalized')
 
     # 메트릭 표시
@@ -240,12 +240,12 @@ def show_page():
         if len(top_talents) > 0:
             top_talent_score = top_talents.iloc[0]['Talent_Score_Normalized']
             st.metric(
-                "최고 유망주 점수",
+                "최고 선수 점수",
                 f"{top_talent_score:.1f}",
-                help="가장 높은 유망주 점수"
+                help="가장 높은 선수 점수"
             )
         else:
-            st.metric("최고 유망주 점수", "N/A")
+            st.metric("최고 선수 점수", "N/A")
 
     with col5:
         if selected_position != 'All' and len(df_filtered) > 0:
@@ -388,7 +388,7 @@ def show_page():
                     # 기본 유망주 점수 사용
                     df_score['Display_Score'] = df_score['Talent_Score_Normalized']
                     score_column = 'Display_Score'
-                    score_label = "유망주 점수"
+                    score_label = "선수 점수"
                     st.caption("💡 능력치 슬라이더를 조정하면 순위가 실시간 변경됩니다")
 
                 # 상위 N명 표시 (사이드바 슬라이더로 조절)
@@ -517,7 +517,7 @@ def show_page():
                         with col2:
                             st.metric("포지션", player_position)
                         with col3:
-                            st.metric("유망주점수", f"{latest_data['Talent_Score_Normalized']:.1f}")
+                            st.metric("선수점수", f"{latest_data['Talent_Score_Normalized']:.1f}")
 
                         # 포지션별 핵심 능력치 가져오기
                         if player_position in position_key_stats:
@@ -607,7 +607,7 @@ def show_page():
                         compare_data = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)][
                             ['Name', 'Age', 'Position_Category', 'Overall_Rating', 'Talent_Score_Normalized']
                         ].copy()
-                        compare_data.columns = ['이름', '나이', '포지션', '종합능력', '유망주점수']
+                        compare_data.columns = ['이름', '나이', '포지션', '종합능력', '선수점수']
                         compare_data = compare_data.round(2)
                         st.dataframe(compare_data, use_container_width=True, hide_index=True, height=150)
 
@@ -1010,7 +1010,7 @@ def show_page():
                 
                 basic_info_cols = ['Name', 'Age', 'Position_Category', 'Overall_Rating', 'Talent_Score_Normalized']
                 basic_df = selected_for_profile[basic_info_cols].copy()
-                basic_df.columns = ['선수명', '나이', '포지션', '종합능력', '유망주점수']
+                basic_df.columns = ['선수명', '나이', '포지션', '종합능력', '선수점수']
                 basic_df = basic_df.round(2)
                 st.dataframe(basic_df, use_container_width=True, hide_index=True)
 
@@ -1244,44 +1244,44 @@ def show_page():
                 st.markdown("---")
 
                 # 종합 점수 비교 바 차트
-                st.subheader("🏆 종합 점수 비교")
-                
-                score_cols = ['Name', 'Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating', 'Talent_Score_Normalized']
-                score_df = selected_for_profile[score_cols].copy()
-                
-                fig_score = go.Figure()
-                
-                for _, row in score_df.iterrows():
-                    fig_score.add_trace(go.Bar(
-                        name=row['Name'],
-                        x=['종합능력', '기술', '정신', '신체', '유망주점수'],
-                        y=[row['Overall_Rating'], row['Technical_Rating'], row['Mental_Rating'], 
-                           row['Physical_Rating'], row['Talent_Score_Normalized'] / 5],  # 유망주점수 스케일 조정
-                        text=[f'{row["Overall_Rating"]:.1f}', f'{row["Technical_Rating"]:.1f}', 
-                              f'{row["Mental_Rating"]:.1f}', f'{row["Physical_Rating"]:.1f}',
-                              f'{row["Talent_Score_Normalized"]:.1f}'],
-                        textposition='auto'
-                    ))
-                
-                fig_score.update_layout(
-                    barmode='group',
-                    height=500,
-                    margin=dict(t=30, b=120, l=50, r=50),
-                    yaxis=dict(range=[0, 25], title="점수"),
-                    xaxis_title="분류",
-                    showlegend=True,
-                    legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5)
-                )
-                
-                st.plotly_chart(fig_score, use_container_width=True)
-                st.caption("※ 유망주점수는 0-100 범위를 0-20 스케일로 조정하여 표시")
+                # st.subheader("🏆 종합 점수 비교")
+                #
+                # score_cols = ['Name', 'Overall_Rating', 'Technical_Rating', 'Mental_Rating', 'Physical_Rating', 'Talent_Score_Normalized']
+                # score_df = selected_for_profile[score_cols].copy()
+                #
+                # fig_score = go.Figure()
+                #
+                # for _, row in score_df.iterrows():
+                #     fig_score.add_trace(go.Bar(
+                #         name=row['Name'],
+                #         x=['종합능력', '기술', '정신', '신체', '유망주점수'],
+                #         y=[row['Overall_Rating'], row['Technical_Rating'], row['Mental_Rating'],
+                #            row['Physical_Rating'], row['Talent_Score_Normalized'] / 5],  # 유망주점수 스케일 조정
+                #         text=[f'{row["Overall_Rating"]:.1f}', f'{row["Technical_Rating"]:.1f}',
+                #               f'{row["Mental_Rating"]:.1f}', f'{row["Physical_Rating"]:.1f}',
+                #               f'{row["Talent_Score_Normalized"]:.1f}'],
+                #         textposition='auto'
+                #     ))
+                #
+                # fig_score.update_layout(
+                #     barmode='group',
+                #     height=500,
+                #     margin=dict(t=30, b=120, l=50, r=50),
+                #     yaxis=dict(range=[0, 25], title="점수"),
+                #     xaxis_title="분류",
+                #     showlegend=True,
+                #     legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5)
+                # )
+                #
+                # st.plotly_chart(fig_score, use_container_width=True)
+                # st.caption("※ 유망주점수는 0-100 범위를 0-20 스케일로 조정하여 표시")
 
     # 푸터
     st.markdown("---")
     st.markdown(
         """
         <div style='text-align: center; color: gray;'>
-            ⚽ 선수 탐색 대시보드<br>
+            ⚽ 선수 탐색 대시보드<br>유망
             데이터: Football Manager 선수 데이터베이스
         </div>
         """,

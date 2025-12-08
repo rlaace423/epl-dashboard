@@ -511,7 +511,7 @@ def show_page():
 
     # 2-2. 히트맵 시각화
     st.subheader("📊 팀별 세부 지표 분석 (Heatmap)")
-    st.info("💡 붉은색이 진할수록 해당 지표에서 리그 상위권임을 의미합니다. 푸른색은 약점을 나타냅니다.")
+    st.info("💡 푸른색이 진할수록 해당 지표에서 리그 상위권임을 의미합니다. 붉은색은 약점을 나타냅니다.")
 
     fig = go.Figure()
     fig.add_trace(go.Heatmap(
