@@ -1241,8 +1241,8 @@ def show_page():
                     fig_phys_heat.update_layout(height=400)
                     st.plotly_chart(fig_phys_heat, use_container_width=True)
 
-                st.markdown("---")
-
+                # st.markdown("---")
+                #
                 # 종합 점수 비교 바 차트
                 # st.subheader("🏆 종합 점수 비교")
                 #
