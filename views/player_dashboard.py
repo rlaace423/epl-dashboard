@@ -399,12 +399,12 @@ def show_page():
                 )
 
                 # 선택된 선수 표시용 색상
-                df_display['Is_Selected'] = df_display['Name'].isin(st.session_state.clicked_players)
+                df_display['Is_Selected'] = df_display['UID'].isin(st.session_state.clicked_players)
 
                 # 바 차트 색상 설정
                 colors_bar = []
                 for idx, row in df_display.iterrows():
-                    if row['Name'] in st.session_state.clicked_players:
+                    if row['UID'] in st.session_state.clicked_players:
                         colors_bar.append('#FF4B4B')  # 빨간색 (선택됨)
                     else:
                         # 나이에 따른 색상 (젊을수록 밝은 색)
@@ -475,11 +475,11 @@ def show_page():
                 if clicked_points:
                     point_index = clicked_points[0].get('pointIndex', None)
                     if point_index is not None and point_index < len(df_display):
-                        clicked_name = df_display.iloc[point_index]['Name']
-                        if clicked_name not in st.session_state.clicked_players:
+                        clicked_uid = df_display.iloc[point_index]['UID']
+                        if clicked_uid not in st.session_state.clicked_players:
                             if len(st.session_state.clicked_players) >= 5:
                                 st.session_state.clicked_players.pop(0)
-                            st.session_state.clicked_players.append(clicked_name)
+                            st.session_state.clicked_players.append(clicked_uid)
                             st.rerun()
 
                 # 범례 표시
@@ -494,7 +494,9 @@ def show_page():
 
                 # 현재 선택된 선수 표시
                 if st.session_state.clicked_players:
-                    st.success(f"⭐ 선택된 선수: {', '.join(st.session_state.clicked_players)}")
+                    display_names = df_filtered[df_filtered['UID'].isin(st.session_state.clicked_players)][
+                        'Name'].tolist()
+                    st.success(f"⭐ 선택된 선수: {', '.join(display_names)}")
 
             # 오른쪽: 레이더 차트
             with col_radar:
@@ -502,13 +504,14 @@ def show_page():
 
                 if len(st.session_state.clicked_players) > 0:
                     # 가장 최근 클릭한 선수 정보
-                    latest_player = st.session_state.clicked_players[-1]
-                    latest_data = df_filtered[df_filtered['Name'] == latest_player]
+                    latest_player_uid = st.session_state.clicked_players[-1]
+                    latest_data = df_filtered[df_filtered['UID'] == latest_player_uid]
 
                     if len(latest_data) > 0:
                         latest_data = latest_data.iloc[0]
+                        latest_player_name = latest_data['Name']
                         player_position = latest_data['Position_Category']
-                        st.subheader(f"Profile: {latest_player}")
+                        st.subheader(f"Profile: {latest_player_name}")
 
                         # 선수 기본 정보
                         col1, col2, col3 = st.columns(3)
@@ -535,7 +538,7 @@ def show_page():
                     fig_radar = go.Figure()
 
                     # 첫 번째 선수의 포지션 기준으로 카테고리 설정
-                    first_player_data = df_filtered[df_filtered['Name'] == st.session_state.clicked_players[0]]
+                    first_player_data = df_filtered[df_filtered['UID'] == st.session_state.clicked_players[0]]
                     if len(first_player_data) > 0:
                         base_position = first_player_data.iloc[0]['Position_Category']
                         if base_position in position_key_stats:
@@ -546,10 +549,11 @@ def show_page():
                             stat_names = ['Finishing', 'Dribbling', 'Passing', 'Tackling', 'Pace', 'Stamina']
                             stat_labels = ['골결정력', '드리블', '패스', '태클', '스피드', '스태미나']
 
-                    for idx, player_name in enumerate(st.session_state.clicked_players):
-                        player_data = df_filtered[df_filtered['Name'] == player_name]
+                    for idx, player_uid in enumerate(st.session_state.clicked_players):
+                        player_data = df_filtered[df_filtered['UID'] == player_uid]
                         if len(player_data) > 0:
                             player_data = player_data.iloc[0]
+                            player_name = player_data['Name']
 
                             # 포지션별 핵심 능력치 값 가져오기
                             values = []
@@ -604,7 +608,7 @@ def show_page():
                     # 선택된 선수들 비교 테이블
                     if len(st.session_state.clicked_players) > 0:
                         st.markdown("##### 📋 선택된 선수 비교")
-                        compare_data = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)][
+                        compare_data = df_filtered[df_filtered['UID'].isin(st.session_state.clicked_players)][
                             ['Name', 'Age', 'Position_Category', 'Overall_Rating', 'Talent_Score_Normalized']
                         ].copy()
                         compare_data.columns = ['이름', '나이', '포지션', '종합능력', '선수점수']
@@ -667,7 +671,7 @@ def show_page():
     #         st.info("👈 **선수 발굴** 탭에서 비교할 선수를 클릭하면 여기서 비교할 수 있습니다.")
     #     else:
     #         # 선택된 선수들만 필터링
-    #         top_compare = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)]
+    #         top_compare = df_filtered[df_filtered['UID'].isin(st.session_state.clicked_players)]
     #
     #         if len(top_compare) == 0:
     #             st.warning("⚠️ 선택된 선수가 현재 필터 조건에 맞지 않습니다.")
@@ -923,7 +927,7 @@ def show_page():
     #         st.info("👈 **선수 발굴** 탭에서 유망주를 클릭하면 여기서 상세 정보를 볼 수 있습니다.")
     #     else:
     #         # 선택된 선수들만 필터링
-    #         selected_talents = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)]
+    #         selected_talents = df_filtered[df_filtered['UID'].isin(st.session_state.clicked_players)]
     #
     #         if len(selected_talents) == 0:
     #             st.warning("⚠️ 선택된 선수가 현재 필터 조건에 맞지 않습니다.")
@@ -998,8 +1002,10 @@ def show_page():
             st.info("👈 **선수 발굴** 탭에서 선수를 클릭하면 여기서 상세 프로필을 비교할 수 있습니다.")
         else:
             # 선택된 선수들만 필터링
-            selected_for_profile = df_filtered[df_filtered['Name'].isin(st.session_state.clicked_players)]
-            
+            selected_for_profile = df_filtered[df_filtered['UID'].isin(st.session_state.clicked_players)].copy()
+            selected_for_profile['Unique_Name'] = selected_for_profile['Name'] + " (" + selected_for_profile[
+                'UID'].astype(str) + ")"
+
             if len(selected_for_profile) == 0:
                 st.warning("⚠️ 선택된 선수가 현재 필터 조건에 맞지 않습니다.")
             else:
@@ -1183,8 +1189,8 @@ def show_page():
                 
                 with tab_tech:
                     tech_cols = [c for c in processor.TECHNICAL_ATTRIBUTES if c in df_filtered.columns]
-                    tech_compare_df = selected_for_profile[['Name'] + tech_cols].copy()
-                    tech_compare_df = tech_compare_df.set_index('Name').T
+                    tech_compare_df = selected_for_profile[['Unique_Name'] + tech_cols].copy()
+                    tech_compare_df = tech_compare_df.set_index('Unique_Name').T
                     tech_compare_df = tech_compare_df.round(1)
                     tech_compare_df.index.name = '능력치'
                     st.dataframe(tech_compare_df, use_container_width=True, height=400)
@@ -1203,8 +1209,8 @@ def show_page():
                 
                 with tab_mental:
                     mental_cols = [c for c in processor.MENTAL_ATTRIBUTES if c in df_filtered.columns]
-                    mental_compare_df = selected_for_profile[['Name'] + mental_cols].copy()
-                    mental_compare_df = mental_compare_df.set_index('Name').T
+                    mental_compare_df = selected_for_profile[['Unique_Name'] + mental_cols].copy()
+                    mental_compare_df = mental_compare_df.set_index('Unique_Name').T
                     mental_compare_df = mental_compare_df.round(1)
                     mental_compare_df.index.name = '능력치'
                     st.dataframe(mental_compare_df, use_container_width=True, height=400)
@@ -1223,8 +1229,8 @@ def show_page():
                 
                 with tab_phys:
                     phys_cols = [c for c in processor.PHYSICAL_ATTRIBUTES if c in df_filtered.columns]
-                    phys_compare_df = selected_for_profile[['Name'] + phys_cols].copy()
-                    phys_compare_df = phys_compare_df.set_index('Name').T
+                    phys_compare_df = selected_for_profile[['Unique_Name'] + phys_cols].copy()
+                    phys_compare_df = phys_compare_df.set_index('Unique_Name').T
                     phys_compare_df = phys_compare_df.round(1)
                     phys_compare_df.index.name = '능력치'
                     st.dataframe(phys_compare_df, use_container_width=True, height=300)
