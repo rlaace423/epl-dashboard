@@ -1204,7 +1204,7 @@ def show_page():
                         color_continuous_scale='RdBu',
                         title="기술 능력치 히트맵"
                     )
-                    fig_tech_heat.update_layout(height=500)
+                    fig_tech_heat.update_layout(height=600)
                     st.plotly_chart(fig_tech_heat, use_container_width=True)
                 
                 with tab_mental:
@@ -1221,10 +1221,10 @@ def show_page():
                         labels=dict(x="선수", y="능력치", color="점수"),
                         x=mental_compare_df.columns.tolist(),
                         y=mental_compare_df.index.tolist(),
-                        color_continuous_scale='RdYlGn',
+                        color_continuous_scale='RdBu',
                         title="정신 능력치 히트맵"
                     )
-                    fig_mental_heat.update_layout(height=500)
+                    fig_mental_heat.update_layout(height=600)
                     st.plotly_chart(fig_mental_heat, use_container_width=True)
                 
                 with tab_phys:
@@ -1241,10 +1241,10 @@ def show_page():
                         labels=dict(x="선수", y="능력치", color="점수"),
                         x=phys_compare_df.columns.tolist(),
                         y=phys_compare_df.index.tolist(),
-                        color_continuous_scale='RdYlGn',
+                        color_continuous_scale='RdBu',
                         title="신체 능력치 히트맵"
                     )
-                    fig_phys_heat.update_layout(height=400)
+                    fig_phys_heat.update_layout(height=500)
                     st.plotly_chart(fig_phys_heat, use_container_width=True)
 
                 # st.markdown("---")
